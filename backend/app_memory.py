@@ -39,10 +39,24 @@ def load_papers(csv_path: str):
             
             if title and url:
                 papers.append({
-                    "id": i, "title": title, "url": url,
+                    "id": str(i), "title": title, "url": url,
                     "organism": organism or None,
-                    "year": int(year) if year.isdigit() else None,
+                    "year": int(year) if year.isdigit() else 2023,
                     "source": source or None,
+                    "authors": "Unknown Author",
+                    "mission": "Unknown Mission",
+                    "environment": "Space Environment",
+                    "summary": title[:100] + "..." if len(title) > 100 else title,
+                    "citations": 0,
+                    "hasOSDR": False,
+                    "hasDOI": False,
+                    "bookmarked": False,
+                    "abstract": title,
+                    "keyResults": [],
+                    "methods": "Not specified",
+                    "conclusions": "Not specified",
+                    "doi": "",
+                    "osdrLink": ""
                 })
                 i += 1
             elif row_count <= 3:

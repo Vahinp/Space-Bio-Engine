@@ -2,12 +2,27 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5002';
 
 export interface Paper {
-  id: number;
+  id: string;
   title: string;
   url: string;
   organism?: string;
-  year?: number;
+  year: number;
   source?: string;
+  authors: string;
+  mission: string;
+  environment: string;
+  summary: string;
+  citations: number;
+  hasOSDR: boolean;
+  hasDOI: boolean;
+  bookmarked: boolean;
+  abstract: string;
+  keyResults: string[];
+  methods: string;
+  conclusions: string;
+  doi: string;
+  osdrLink: string;
+  taskBookLink?: string;
 }
 
 export interface ApiResponse<T> {

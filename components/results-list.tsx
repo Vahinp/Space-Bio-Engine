@@ -280,7 +280,7 @@ export function ResultsList({ searchQuery, filters, papers, loading, error }: Re
             </div>
 
             <div className="space-y-4">
-              {papers.map((paper) => (
+              {papers.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((paper) => (
                 <Card
                   key={paper.id}
                   className="hover:border-primary/50 hover:shadow-lg hover:scale-[1.01] transition-all duration-200"
@@ -288,8 +288,8 @@ export function ResultsList({ searchQuery, filters, papers, loading, error }: Re
                   <CardHeader className="pb-3">
                     <div className="flex items-start gap-3">
                       <Checkbox
-                        checked={selectedPapers.includes(paper.id.toString())}
-                        onCheckedChange={() => togglePaperSelection(paper.id.toString())}
+                        checked={selectedPapers.includes(paper.id)}
+                        onCheckedChange={() => togglePaperSelection(paper.id)}
                         className="mt-1"
                       />
                       <div className="flex-1 space-y-2">
@@ -304,7 +304,7 @@ export function ResultsList({ searchQuery, filters, papers, loading, error }: Re
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 shrink-0 hover:scale-110 transition-transform duration-200"
-                            onClick={() => toggleBookmark(paper.id.toString())}
+                            onClick={() => toggleBookmark(paper.id)}
                           >
                             <Bookmark className="h-4 w-4 transition-all duration-200" />
                           </Button>
@@ -372,7 +372,7 @@ export function ResultsList({ searchQuery, filters, papers, loading, error }: Re
 
             <div className="flex items-center justify-between pt-4">
               <div className="text-sm text-muted-foreground">
-                Page {currentPage} of {Math.ceil(papers.length / pageSize)}
+                Showing {Math.min((currentPage - 1) * pageSize + 1, papers.length)}-{Math.min(currentPage * pageSize, papers.length)} of {papers.length} papers
               </div>
               <div className="flex gap-2">
                 <Button

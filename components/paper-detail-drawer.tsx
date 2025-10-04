@@ -7,24 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-
-interface Paper {
-  id: string
-  title: string
-  authors: string
-  year: number
-  organism: string
-  mission: string
-  environment: string
-  abstract: string
-  keyResults: string[]
-  methods: string
-  conclusions: string
-  doi?: string
-  osdrLink?: string
-  taskBookLink?: string
-  citations: number
-}
+import { Paper } from "@/lib/api"
 
 interface PaperDetailDrawerProps {
   paper: Paper | null
