@@ -1,8 +1,9 @@
 "use client"
 
-import { Rocket, Bookmark, Settings } from "lucide-react"
+import { Rocket, Bookmark, Settings, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
+import Link from "next/link"
 
 export function AppHeader() {
   return (
@@ -21,6 +22,12 @@ export function AppHeader() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link href="/add-article">
+            <Button variant="outline" size="sm" className="gap-2 transition-all hover:scale-105">
+              <Plus className="h-4 w-4" />
+              Add Article
+            </Button>
+          </Link>
           <Button variant="ghost" size="sm" className="gap-2 transition-all hover:scale-105">
             <Bookmark className="h-4 w-4" />
             Bookmarks

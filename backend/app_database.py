@@ -4,6 +4,7 @@ Flask API for Space Bio Engine with SQLite database backend
 """
 
 import os
+import sqlite3
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pmc_scrape import parse_pmc_article, batch_parse_pmc_articles
@@ -186,83 +187,160 @@ def create_app():
             print(f"Error in batch PMC parse endpoint: {str(e)}")
             return {"error": str(e)}, 500
 
-    @app.post("/api/papers/enrich-all")
-    def enrich_all_papers():
-        """Parse and enrich all PMC articles currently in database."""
-        try:
-            # Get papers that need enrichment
-            papers_to_enrich = get_pmc_papers_to_enrich()
-            print(f"Starting to enrich {len(papers_to_enrich)} papers...")
-            
-            enriched_count = 0
-            error_count = 0
-            results = []
-            
-            for i, paper in enumerate(papers_to_enrich):
-                url = paper.get("url", "")
-                paper_id = paper.get("id")
+        @app.post("/api/papers/add")
+        def add_paper():
+            """Add a new paper by parsing its URL and storing in database."""
+            try:
+                data = request.get_json(force=True) or {}
+                url = (data.get("url") or "").strip()
                 
-                print(f"Enriching paper {i+1}/{len(papers_to_enrich)}: {paper.get('title', 'Unknown')[:50]}...")
+                if not url:
+                    return {"error": "URL is required"}, 400
                 
-                try:
-                    # Parse the PMC article
-                    result = parse_pmc_article(url)
+                print(f"Adding new paper from URL: {url}")
+                
+                # Parse the article
+                result = parse_pmc_article(url)
+                
+                if result.get('error'):
+                    return {"error": f"Failed to parse article: {result.get('error')}"}, 400
+                
+                # Generate new ID
+                existing_papers = get_all_papers_from_db(DATABASE_PATH)
+                new_id = str(len(existing_papers) + 1)
+                
+                # Create paper data
+                paper_data = {
+                    "id": new_id,
+                    "title": result.get("title", "Untitled Article"),
+                    "url": result.get("html_url", url),
+                    "organism": "Unknown",
+                    "year": result.get("year", 2023),
+                    "source": result.get("source", "PMC"),
+                    "authors": result.get("authors", "Unknown Author"),
+                    "mission": "Unknown Mission",
+                    "environment": "Space Environment",
+                    "summary": result.get("abstract", "")[:200] + "..." if result.get("abstract") and len(result.get("abstract", "")) > 200 else result.get("abstract", ""),
+                    "citations": 0,
+                    "hasOSDR": False,
+                    "hasDOI": bool(result.get("doi")),
+                    "bookmarked": False,
+                    "abstract": result.get("abstract", ""),
+                    "keyResults": "[]",
+                    "methods": "Not specified",
+                    "conclusions": "Not specified",
+                    "doi": result.get("doi", ""),
+                    "osdrLink": "",
+                    "taskBookLink": result.get("pdf_url", "")
+                }
+                
+                # Insert into database
+                conn = sqlite3.connect(DATABASE_PATH)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO papers (id, title, url, organism, year, source, authors, mission, environment, summary, citations, hasOSDR, hasDOI, bookmarked, abstract, keyResults, methods, conclusions, doi, osdrLink, taskBookLink)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    paper_data["id"], paper_data["title"], paper_data["url"], paper_data["organism"], 
+                    paper_data["year"], paper_data["source"], paper_data["authors"], paper_data["mission"], 
+                    paper_data["environment"], paper_data["summary"], paper_data["citations"], 
+                    paper_data["hasOSDR"], paper_data["hasDOI"], paper_data["bookmarked"], 
+                    paper_data["abstract"], paper_data["keyResults"], paper_data["methods"], 
+                    paper_data["conclusions"], paper_data["doi"], paper_data["osdrLink"], 
+                    paper_data["taskBookLink"]
+                ))
+                conn.commit()
+                conn.close()
+                
+                print(f"✅ Successfully added paper: {result.get('title', 'Unknown')[:50]}...")
+                
+                return jsonify({
+                    "success": True,
+                    "message": "Paper added successfully",
+                    "paper": paper_data
+                })
+                
+            except Exception as e:
+                print(f"Error adding paper: {str(e)}")
+                return {"error": str(e)}, 500
+
+        @app.post("/api/papers/enrich-all")
+        def enrich_all_papers():
+            """Parse and enrich all PMC articles currently in database."""
+            try:
+                # Get papers that need enrichment
+                papers_to_enrich = get_pmc_papers_to_enrich()
+                print(f"Starting to enrich {len(papers_to_enrich)} papers...")
+                
+                enriched_count = 0
+                error_count = 0
+                results = []
+                
+                for i, paper in enumerate(papers_to_enrich):
+                    url = paper.get("url", "")
+                    paper_id = paper.get("id")
                     
-                    if result.get('error'):
-                        print(f"  ❌ Error: {result.get('error')}")
+                    print(f"Enriching paper {i+1}/{len(papers_to_enrich)}: {paper.get('title', 'Unknown')[:50]}...")
+                    
+                    try:
+                        # Parse the PMC article
+                        result = parse_pmc_article(url)
+                        
+                        if result.get('error'):
+                            print(f"  ❌ Error: {result.get('error')}")
+                            error_count += 1
+                            results.append({
+                                "id": str(paper_id),
+                                "title": paper.get("title"),
+                                "status": "error",
+                                "error": result.get('error')
+                            })
+                        else:
+                            # Update the paper in database with enriched data
+                            update_paper_enrichment(paper_id, result)
+                            
+                            print(f"  ✅ Enriched: {result.get('title', 'Unknown')[:50]}...")
+                            print(f"     Authors: {result.get('authors', 'Unknown')}")
+                            print(f"     Year: {result.get('year', 'Unknown')}")
+                            print(f"     Abstract: {len(result.get('abstract', ''))} chars")
+                            
+                            enriched_count += 1
+                            results.append({
+                                "id": str(paper_id),
+                                "title": result.get("title", paper.get("title")),
+                                "status": "success",
+                                "authors": result.get("authors"),
+                                "year": result.get("year"),
+                                "abstract_length": len(result.get("abstract", ""))
+                            })
+                    
+                    except Exception as e:
+                        print(f"  ❌ Exception: {str(e)}")
                         error_count += 1
                         results.append({
                             "id": str(paper_id),
                             "title": paper.get("title"),
                             "status": "error",
-                            "error": result.get('error')
+                            "error": str(e)
                         })
-                    else:
-                        # Update the paper in database with enriched data
-                        update_paper_enrichment(paper_id, result)
-                        
-                        print(f"  ✅ Enriched: {result.get('title', 'Unknown')[:50]}...")
-                        print(f"     Authors: {result.get('authors', 'Unknown')}")
-                        print(f"     Year: {result.get('year', 'Unknown')}")
-                        print(f"     Abstract: {len(result.get('abstract', ''))} chars")
-                        
-                        enriched_count += 1
-                        results.append({
-                            "id": str(paper_id),
-                            "title": result.get("title", paper.get("title")),
-                            "status": "success",
-                            "authors": result.get("authors"),
-                            "year": result.get("year"),
-                            "abstract_length": len(result.get("abstract", ""))
-                        })
+                    
+                    # Small delay to be respectful
+                    time.sleep(0.5)
                 
-                except Exception as e:
-                    print(f"  ❌ Exception: {str(e)}")
-                    error_count += 1
-                    results.append({
-                        "id": str(paper_id),
-                        "title": paper.get("title"),
-                        "status": "error",
-                        "error": str(e)
-                    })
+                print(f"Enrichment complete! Enriched: {enriched_count}, Errors: {error_count}")
                 
-                # Small delay to be respectful
-                time.sleep(0.5)
-            
-            print(f"Enrichment complete! Enriched: {enriched_count}, Errors: {error_count}")
-            
-            return jsonify({
-                "success": True,
-                "total_papers": len(papers_to_enrich),
-                "enriched_count": enriched_count,
-                "error_count": error_count,
-                "skipped_count": 0,  # All papers in the list needed enrichment
-                "results": results
-            })
-            
-        except Exception as e:
-            print(f"Error in enrich all papers endpoint: {str(e)}")
-            return {"error": str(e)}, 500
+                return jsonify({
+                    "success": True,
+                    "total_papers": len(papers_to_enrich),
+                    "enriched_count": enriched_count,
+                    "error_count": error_count,
+                    "skipped_count": 0,  # All papers in the list needed enrichment
+                    "results": results
+                })
+                
+            except Exception as e:
+                print(f"Error in enrich all papers endpoint: {str(e)}")
+                return {"error": str(e)}, 500
 
     return app
 

@@ -111,6 +111,18 @@ class ApiService {
       method: 'POST',
     });
   }
+
+  // Add a new paper by URL
+  async addPaper(url: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    paper: Paper;
+  }>> {
+    return this.request('/api/papers/add', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    });
+  }
 }
 
 export const apiService = new ApiService();
