@@ -37,7 +37,7 @@ export function D3PapersChart({ data, className }: D3PapersChartProps) {
     const svg = d3.select(svgRef.current)
     svg.selectAll("*").remove() // Clear previous renders
 
-    const margin = { top: 20, right: 30, bottom: 40, left: 40 }
+    const margin = { top: 20, right: 30, bottom: 70, left: 40 }
     const width = 400 - margin.left - margin.right
     const height = 300 - margin.top - margin.bottom
 
@@ -213,7 +213,7 @@ export function D3PapersChart({ data, className }: D3PapersChartProps) {
       tooltip.style("opacity", 0)
     })
 
-    // X axis
+    // X axis with angled labels
     g.append("g")
       .attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(xScale))
@@ -221,6 +221,10 @@ export function D3PapersChart({ data, className }: D3PapersChartProps) {
       .selectAll("text")
       .style("font-size", "12px")
       .style("fill", "hsl(var(--muted-foreground))")
+      .style("text-anchor", "end")
+      .attr("transform", "rotate(-45)")
+      .attr("dx", "-0.5em")
+      .attr("dy", "0.5em")
 
     // Y axis
     g.append("g")

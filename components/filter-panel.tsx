@@ -23,6 +23,7 @@ interface FilterPanelProps {
   }
   onFiltersChange: (filters: any) => void
   onSearchWithFilters?: (filters: any) => void
+  papers?: any[]
 }
 
 const ORGANISMS = ["Human", "Mouse", "Plant", "Microbe", "Rat", "C. elegans", "Drosophila", "Unknown"]
@@ -32,7 +33,7 @@ const TISSUES = ["Bone", "Muscle", "Cardiovascular", "Immune", "Neural", "Skin"]
 const ASSAYS = ["RNA-seq", "Proteomics", "Metabolomics", "Imaging", "Behavioral"]
 const OUTCOMES = ["Up-regulated", "Down-regulated", "Morphology Change", "Behavioral Change"]
 
-export function FilterPanel({ filters, onFiltersChange, onSearchWithFilters }: FilterPanelProps) {
+export function FilterPanel({ filters, onFiltersChange, onSearchWithFilters, papers }: FilterPanelProps) {
   const [expandedSections, setExpandedSections] = useState({
     year: true,
     organism: true,
@@ -43,6 +44,29 @@ export function FilterPanel({ filters, onFiltersChange, onSearchWithFilters }: F
     outcome: false,
     data: false,
   })
+
+  // Calculate year range from papers data
+  const getYearRange = () => {
+    if (!papers || papers.length === 0) {
+      return { minYear: 1950, maxYear: new Date().getFullYear() }
+    }
+    
+    const years = papers
+      .map(paper => paper.year)
+      .filter(year => year && !isNaN(Number(year)))
+      .map(year => Number(year))
+    
+    if (years.length === 0) {
+      return { minYear: 1950, maxYear: new Date().getFullYear() }
+    }
+    
+    return {
+      minYear: Math.min(...years),
+      maxYear: Math.max(...years)
+    }
+  }
+
+  const { minYear, maxYear } = getYearRange()
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }))
@@ -56,7 +80,7 @@ export function FilterPanel({ filters, onFiltersChange, onSearchWithFilters }: F
 
   const resetFilters = () => {
     onFiltersChange({
-      yearRange: [2000, 2024],
+      yearRange: [minYear, maxYear],
       organisms: [],
       missions: [],
       environments: [],
@@ -94,20 +118,23 @@ export function FilterPanel({ filters, onFiltersChange, onSearchWithFilters }: F
 
         {/* Year Range */}
         <FilterSection title="Year Range" expanded={expandedSections.year} onToggle={() => toggleSection("year")}>
-          <div className="space-y-3">
-            <Slider
-              value={filters.yearRange}
-              onValueChange={(value) => onFiltersChange({ ...filters, yearRange: value as [number, number] })}
-              min={1990}
-              max={2024}
-              step={1}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{filters.yearRange[0]}</span>
-              <span>{filters.yearRange[1]}</span>
+            <div className="space-y-3">
+              <Slider
+                value={filters.yearRange}
+                onValueChange={(value) => onFiltersChange({ ...filters, yearRange: value as [number, number] })}
+                min={minYear}
+                max={maxYear}
+                step={1}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{filters.yearRange[0]}</span>
+                <span>{filters.yearRange[1]}</span>
+              </div>
+              <div className="text-xs text-center text-muted-foreground">
+                Range: {minYear} - {maxYear}
+              </div>
             </div>
-          </div>
         </FilterSection>
 
         {/* Organism */}

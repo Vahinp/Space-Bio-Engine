@@ -13,8 +13,26 @@ import { usePapers } from "@/hooks/use-papers"
 
 export default function Home() {
   const { papers, loading, error, searchQuery, setSearchQuery, searchPapers, enriching, enrichAllPapers, enrichmentStatus } = usePapers()
+  // Calculate initial year range from papers
+  const getInitialYearRange = () => {
+    if (!papers || papers.length === 0) {
+      return [1950, new Date().getFullYear()] as [number, number]
+    }
+    
+    const years = papers
+      .map(paper => paper.year)
+      .filter(year => year && !isNaN(Number(year)))
+      .map(year => Number(year))
+    
+    if (years.length === 0) {
+      return [1950, new Date().getFullYear()] as [number, number]
+    }
+    
+    return [Math.min(...years), Math.max(...years)] as [number, number]
+  }
+
   const [filters, setFilters] = useState({
-    yearRange: [2000, 2024] as [number, number],
+    yearRange: getInitialYearRange(),
     organisms: [] as string[],
     missions: [] as string[],
     environments: [] as string[],
@@ -56,7 +74,7 @@ export default function Home() {
     searchPapers(query, esFilters)
   }
 
-  // Handle individual filter changes and update search query
+  // Handle individual filter changes and trigger search
   const handleFiltersChange = (newFilters: typeof filters) => {
     setFilters(newFilters)
     
@@ -84,21 +102,45 @@ export default function Home() {
     if (newFilters.hasOSDR) {
       filterTerms.push('hasOSDR:true')
     }
-    if (newFilters.yearRange[0] !== 2000 || newFilters.yearRange[1] !== 2024) {
+    // Get the actual year range from papers
+    const getYearRangeFromPapers = () => {
+      if (!papers || papers.length === 0) {
+        return { minYear: 1950, maxYear: new Date().getFullYear() }
+      }
+      
+      const years = papers
+        .map(paper => paper.year)
+        .filter(year => year && !isNaN(Number(year)))
+        .map(year => Number(year))
+      
+      if (years.length === 0) {
+        return { minYear: 1950, maxYear: new Date().getFullYear() }
+      }
+      
+      return {
+        minYear: Math.min(...years),
+        maxYear: Math.max(...years)
+      }
+    }
+
+    const { minYear, maxYear } = getYearRangeFromPapers()
+    if (newFilters.yearRange[0] !== minYear || newFilters.yearRange[1] !== maxYear) {
       filterTerms.push(`year:${newFilters.yearRange[0]}-${newFilters.yearRange[1]}`)
     }
     
-    // Update search query with filter terms
+    // Update search query and trigger search immediately
     const filterQuery = filterTerms.join(' ')
     setSearchQuery(filterQuery)
+    
+    // Trigger search with filters
+    const esFilters = convertFiltersToES(newFilters)
+    searchPapers(filterQuery, esFilters)
   }
 
-  // Handle search query changes
+  // Handle search query changes (no auto-search to prevent loops)
   const handleSearchQueryChange = (query: string) => {
     setSearchQuery(query)
-    // Auto-search when query changes (including from filters)
-    const esFilters = convertFiltersToES(filters)
-    searchPapers(query, esFilters)
+    // Search only when user explicitly clicks search button
   }
 
   // Handle search button click
@@ -157,6 +199,7 @@ export default function Home() {
                   filters={filters} 
                   onFiltersChange={handleFiltersChange} 
                   onSearchWithFilters={handleFilterSearch}
+                  papers={papers}
                 />
               </aside>
 

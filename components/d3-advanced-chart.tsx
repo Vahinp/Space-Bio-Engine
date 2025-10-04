@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import * as d3 from "d3"
 
@@ -83,7 +82,7 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
     const svg = d3.select(svgRef.current)
     svg.selectAll("*").remove()
 
-    const margin = { top: 30, right: 50, bottom: 50, left: 60 }
+    const margin = { top: 30, right: 50, bottom: 80, left: 60 }
     const width = 500 - margin.left - margin.right
     const height = 350 - margin.top - margin.bottom
 
@@ -213,15 +212,19 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
       .ease(d3.easeBackOut)
       .attr("r", 7)
 
-    // X axis
+    // X axis with angled labels
     g.append("g")
       .attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(xScale))
       .style("color", "#6b7280")
       .selectAll("text")
-      .style("font-size", "13px")
+      .style("font-size", "12px")
       .style("fill", "#6b7280")
       .style("font-weight", "500")
+      .style("text-anchor", "end")
+      .attr("transform", "rotate(-45)")
+      .attr("dx", "-0.5em")
+      .attr("dy", "0.5em")
 
     // Y axis
     g.append("g")
@@ -300,36 +303,6 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
               Selected: {selectedYear}
             </div>
           )}
-        </div>
-        <div className="mt-4 flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectedYear(null)}
-            className="text-xs"
-          >
-            Clear Selection
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              // Trigger re-animation of dots
-              const svg = d3.select(svgRef.current)
-              svg.selectAll(".dot")
-                .transition()
-                .duration(300)
-                .attr("r", 0)
-                .transition()
-                .duration(500)
-                .delay((d, i) => i * 100)
-                .ease(d3.easeBackOut)
-                .attr("r", 7)
-            }}
-            className="text-xs"
-          >
-            Re-animate Dots
-          </Button>
         </div>
       </CardContent>
     </Card>
