@@ -88,6 +88,29 @@ class ApiService {
   async searchPapers(query: string): Promise<ApiResponse<Paper[]>> {
     return this.request(`/api/papers/search?q=${encodeURIComponent(query)}`);
   }
+
+  // Enrich all papers with PMC data
+  async enrichAllPapers(): Promise<ApiResponse<{
+    success: boolean;
+    total_papers: number;
+    enriched_count: number;
+    error_count: number;
+    skipped_count: number;
+    results: Array<{
+      id: string;
+      title: string;
+      status: 'success' | 'error' | 'skipped';
+      authors?: string;
+      year?: number;
+      abstract_length?: number;
+      error?: string;
+      reason?: string;
+    }>;
+  }>> {
+    return this.request('/api/papers/enrich-all', {
+      method: 'POST',
+    });
+  }
 }
 
 export const apiService = new ApiService();

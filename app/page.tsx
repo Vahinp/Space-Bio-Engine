@@ -8,11 +8,11 @@ import { InsightsTabs } from "@/components/insights-tabs"
 import { ResultsList } from "@/components/results-list"
 import { ChatbotPanel } from "@/components/chatbot-panel"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MessageSquare, FileSearch } from "lucide-react"
+import { MessageSquare, FileSearch, Database, Loader2 } from "lucide-react"
 import { usePapers } from "@/hooks/use-papers"
 
 export default function Home() {
-  const { papers, loading, error, searchQuery, setSearchQuery } = usePapers()
+  const { papers, loading, error, searchQuery, setSearchQuery, enriching, enrichAllPapers, enrichmentStatus } = usePapers()
   const [filters, setFilters] = useState({
     yearRange: [2000, 2024] as [number, number],
     organisms: [] as string[],
@@ -29,12 +29,38 @@ export default function Home() {
       <AppHeader />
 
       <main className="flex-1 flex flex-col">
-        {/* Search Section */}
-        <div className="border-b border-border bg-background sticky top-0 z-40">
-          <div className="px-6 py-4">
-            <SearchBar onSearch={setSearchQuery} />
-          </div>
-        </div>
+            {/* Search Section */}
+            <div className="border-b border-border bg-background sticky top-0 z-40">
+              <div className="px-6 py-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <SearchBar onSearch={setSearchQuery} />
+                  </div>
+                  <button
+                    onClick={enrichAllPapers}
+                    disabled={enriching}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {enriching ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Database className="h-4 w-4" />
+                    )}
+                    {enriching ? 'Enriching...' : 'Enrich Papers'}
+                  </button>
+                </div>
+                {enrichmentStatus && (
+                  <div className="mt-3 p-3 bg-muted rounded-md text-sm">
+                    <div className="flex items-center gap-4">
+                      <span>Total: {enrichmentStatus.total}</span>
+                      <span className="text-green-600">Enriched: {enrichmentStatus.enriched}</span>
+                      <span className="text-yellow-600">Skipped: {enrichmentStatus.skipped}</span>
+                      <span className="text-red-600">Errors: {enrichmentStatus.errors}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
         {/* Main Content */}
         <div className="flex-1 flex">

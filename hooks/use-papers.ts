@@ -12,6 +12,14 @@ interface UsePapersReturn {
   refreshPapers: () => void;
   searchPapers: (query: string) => void;
   clearSearch: () => void;
+  enriching: boolean;
+  enrichAllPapers: () => Promise<void>;
+  enrichmentStatus: {
+    total: number;
+    enriched: number;
+    errors: number;
+    skipped: number;
+  } | null;
 }
 
 export function usePapers(): UsePapersReturn {
@@ -19,6 +27,13 @@ export function usePapers(): UsePapersReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [enriching, setEnriching] = useState(false);
+  const [enrichmentStatus, setEnrichmentStatus] = useState<{
+    total: number;
+    enriched: number;
+    errors: number;
+    skipped: number;
+  } | null>(null);
 
   const loadPapers = useCallback(async () => {
     setLoading(true);
@@ -82,6 +97,39 @@ export function usePapers(): UsePapersReturn {
     }
   }, [searchQuery, searchPapers, loadPapers]);
 
+  const enrichAllPapers = useCallback(async () => {
+    setEnriching(true);
+    setError(null);
+    
+    console.log('🔬 Starting to enrich all papers with PMC data...');
+    
+    try {
+      const response = await apiService.enrichAllPapers();
+      console.log('📡 Enrichment API Response:', response);
+      
+      if (response.error) {
+        console.error('❌ Enrichment API Error:', response.error);
+        setError(response.error);
+      } else if (response.data) {
+        console.log('✅ Papers enriched successfully:', response.data);
+        setEnrichmentStatus({
+          total: response.data.total_papers,
+          enriched: response.data.enriched_count,
+          errors: response.data.error_count,
+          skipped: response.data.skipped_count,
+        });
+        
+        // Reload papers to get the enriched data
+        await loadPapers();
+      }
+    } catch (err) {
+      console.error('💥 Enrichment error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to enrich papers');
+    } finally {
+      setEnriching(false);
+    }
+  }, [loadPapers]);
+
   // Load papers on mount
   useEffect(() => {
     loadPapers();
@@ -109,5 +157,8 @@ export function usePapers(): UsePapersReturn {
     refreshPapers,
     searchPapers,
     clearSearch,
+    enriching,
+    enrichAllPapers,
+    enrichmentStatus,
   };
 }
