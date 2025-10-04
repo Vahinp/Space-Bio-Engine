@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import FilterBar from '../components/FilterBar'
 import ResultsPlaceholder from '../components/ResultsPlaceholder'
 import ChatbotDrawer from '../components/ChatbotDrawer'
