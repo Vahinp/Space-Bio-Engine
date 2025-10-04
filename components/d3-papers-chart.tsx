@@ -213,10 +213,13 @@ export function D3PapersChart({ data, className }: D3PapersChartProps) {
       tooltip.style("opacity", 0)
     })
 
-    // X axis with angled labels
+    // X axis with angled labels - dynamic ticks
+    const yearCount = data.length
+    const tickCount = Math.min(yearCount, 8) // Max 8 ticks for readability
+    
     g.append("g")
       .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(xScale))
+      .call(d3.axisBottom(xScale).ticks(tickCount))
       .style("color", "hsl(var(--muted-foreground))")
       .selectAll("text")
       .style("font-size", "12px")

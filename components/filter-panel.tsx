@@ -45,28 +45,9 @@ export function FilterPanel({ filters, onFiltersChange, onSearchWithFilters, pap
     data: false,
   })
 
-  // Calculate year range from papers data
-  const getYearRange = () => {
-    if (!papers || papers.length === 0) {
-      return { minYear: 1950, maxYear: new Date().getFullYear() }
-    }
-    
-    const years = papers
-      .map(paper => paper.year)
-      .filter(year => year && !isNaN(Number(year)))
-      .map(year => Number(year))
-    
-    if (years.length === 0) {
-      return { minYear: 1950, maxYear: new Date().getFullYear() }
-    }
-    
-    return {
-      minYear: Math.min(...years),
-      maxYear: Math.max(...years)
-    }
-  }
-
-  const { minYear, maxYear } = getYearRange()
+  // Fixed year range from 1900 to current year
+  const minYear = 1900
+  const maxYear = new Date().getFullYear()
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }))
@@ -126,6 +107,7 @@ export function FilterPanel({ filters, onFiltersChange, onSearchWithFilters, pap
                 max={maxYear}
                 step={1}
                 className="w-full"
+                disabled={minYear === maxYear}
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{filters.yearRange[0]}</span>

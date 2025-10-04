@@ -24,25 +24,26 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
   const [selectedYear, setSelectedYear] = useState<string | null>(null)
   const [chartData, setChartData] = useState<PaperData[]>([])
 
-  // Enhanced data with categories
+  // Enhanced data with categories - showing recent years as default
   const defaultData: PaperData[] = [
-    { year: "2018", count: 45, category: "Space Biology" },
-    { year: "2019", count: 52, category: "Space Biology" },
-    { year: "2020", count: 48, category: "Space Biology" },
-    { year: "2021", count: 67, category: "Space Biology" },
-    { year: "2022", count: 89, category: "Space Biology" },
-    { year: "2023", count: 103, category: "Space Biology" },
-    { year: "2024", count: 78, category: "Space Biology" },
+    { year: "2020", count: 45, category: "Space Biology" },
+    { year: "2021", count: 52, category: "Space Biology" },
+    { year: "2022", count: 48, category: "Space Biology" },
+    { year: "2023", count: 67, category: "Space Biology" },
+    { year: "2024", count: 89, category: "Space Biology" },
   ]
 
   // Process search results into chart data
   const processSearchResults = (papers: any[]): PaperData[] => {
     if (!papers || papers.length === 0) return defaultData
     
-    // Group papers by year
+    // Group papers by year, filtering for valid years (1900-current)
     const yearGroups = papers.reduce((acc, paper) => {
-      const year = paper.year?.toString() || 'Unknown'
-      acc[year] = (acc[year] || 0) + 1
+      const yearNum = paper.year ? Number(paper.year) : null
+      if (yearNum && yearNum >= 1900 && yearNum <= new Date().getFullYear()) {
+        const year = yearNum.toString()
+        acc[year] = (acc[year] || 0) + 1
+      }
       return acc
     }, {} as Record<string, number>)
     
@@ -53,7 +54,7 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
         count,
         category: "Search Results"
       }))
-      .sort((a, b) => a.year.localeCompare(b.year))
+      .sort((a, b) => Number(a.year) - Number(b.year))
     
     return processedData.length > 0 ? processedData : defaultData
   }
@@ -212,19 +213,22 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
       .ease(d3.easeBackOut)
       .attr("r", 7)
 
-    // X axis with angled labels
-    g.append("g")
-      .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(xScale))
-      .style("color", "#6b7280")
-      .selectAll("text")
-      .style("font-size", "12px")
-      .style("fill", "#6b7280")
-      .style("font-weight", "500")
-      .style("text-anchor", "end")
-      .attr("transform", "rotate(-45)")
-      .attr("dx", "-0.5em")
-      .attr("dy", "0.5em")
+        // X axis with angled labels - dynamic ticks based on data
+        const yearCount = chartData.length
+        const tickCount = Math.min(yearCount, 8) // Max 8 ticks for readability
+        
+        g.append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(xScale).ticks(tickCount))
+          .style("color", "#6b7280")
+          .selectAll("text")
+          .style("font-size", "12px")
+          .style("fill", "#6b7280")
+          .style("font-weight", "500")
+          .style("text-anchor", "end")
+          .attr("transform", "rotate(-45)")
+          .attr("dx", "-0.5em")
+          .attr("dy", "0.5em")
 
     // Y axis
     g.append("g")

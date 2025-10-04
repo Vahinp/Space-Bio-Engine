@@ -14,25 +14,8 @@ import { usePapers } from "@/hooks/use-papers"
 export default function Home() {
   const { papers, loading, error, searchQuery, setSearchQuery, searchPapers, enriching, enrichAllPapers, enrichmentStatus } = usePapers()
   // Calculate initial year range from papers
-  const getInitialYearRange = () => {
-    if (!papers || papers.length === 0) {
-      return [1950, new Date().getFullYear()] as [number, number]
-    }
-    
-    const years = papers
-      .map(paper => paper.year)
-      .filter(year => year && !isNaN(Number(year)))
-      .map(year => Number(year))
-    
-    if (years.length === 0) {
-      return [1950, new Date().getFullYear()] as [number, number]
-    }
-    
-    return [Math.min(...years), Math.max(...years)] as [number, number]
-  }
-
   const [filters, setFilters] = useState({
-    yearRange: getInitialYearRange(),
+    yearRange: [1900, new Date().getFullYear()] as [number, number],
     organisms: [] as string[],
     missions: [] as string[],
     environments: [] as string[],
@@ -102,28 +85,9 @@ export default function Home() {
     if (newFilters.hasOSDR) {
       filterTerms.push('hasOSDR:true')
     }
-    // Get the actual year range from papers
-    const getYearRangeFromPapers = () => {
-      if (!papers || papers.length === 0) {
-        return { minYear: 1950, maxYear: new Date().getFullYear() }
-      }
-      
-      const years = papers
-        .map(paper => paper.year)
-        .filter(year => year && !isNaN(Number(year)))
-        .map(year => Number(year))
-      
-      if (years.length === 0) {
-        return { minYear: 1950, maxYear: new Date().getFullYear() }
-      }
-      
-      return {
-        minYear: Math.min(...years),
-        maxYear: Math.max(...years)
-      }
-    }
-
-    const { minYear, maxYear } = getYearRangeFromPapers()
+    // Fixed year range from 1900 to current year
+    const minYear = 1900
+    const maxYear = new Date().getFullYear()
     if (newFilters.yearRange[0] !== minYear || newFilters.yearRange[1] !== maxYear) {
       filterTerms.push(`year:${newFilters.yearRange[0]}-${newFilters.yearRange[1]}`)
     }
