@@ -2,20 +2,30 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 
 interface SearchBarProps {
   onSearch: (query: string) => void
+  onSearchClick?: () => void
+  value?: string
 }
 
-export function SearchBar({ onSearch }: SearchBarProps) {
-  const [query, setQuery] = useState("")
+export function SearchBar({ onSearch, onSearchClick, value = "" }: SearchBarProps) {
+  const [query, setQuery] = useState(value)
+
+  // Sync internal state with external value
+  useEffect(() => {
+    setQuery(value)
+  }, [value])
 
   const handleSearch = () => {
     onSearch(query)
+    if (onSearchClick) {
+      onSearchClick()
+    }
   }
 
   const handleClear = () => {

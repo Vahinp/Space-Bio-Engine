@@ -10,7 +10,15 @@ interface UsePapersReturn {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   refreshPapers: () => void;
-  searchPapers: (query: string) => void;
+  searchPapers: (query: string, filters?: {
+    year_gte?: number;
+    year_lte?: number;
+    organism?: string;
+    mission?: string;
+    environment?: string;
+    hasOSDR?: boolean;
+    hasDOI?: boolean;
+  }) => void;
   clearSearch: () => void;
   enriching: boolean;
   enrichAllPapers: () => Promise<void>;
@@ -61,8 +69,16 @@ export function usePapers(): UsePapersReturn {
     }
   }, []);
 
-  const searchPapers = useCallback(async (query: string) => {
-    if (!query.trim()) {
+  const searchPapers = useCallback(async (query: string, filters?: {
+    year_gte?: number;
+    year_lte?: number;
+    organism?: string;
+    mission?: string;
+    environment?: string;
+    hasOSDR?: boolean;
+    hasDOI?: boolean;
+  }) => {
+    if (!query.trim() && !filters) {
       loadPapers();
       return;
     }
@@ -71,7 +87,7 @@ export function usePapers(): UsePapersReturn {
     setError(null);
     
     try {
-      const response = await apiService.searchPapers(query);
+      const response = await apiService.searchPapers(query, filters);
       if (response.error) {
         setError(response.error);
       } else if (response.data) {
@@ -130,23 +146,24 @@ export function usePapers(): UsePapersReturn {
     }
   }, [loadPapers]);
 
-  // Load papers on mount
+  // Load papers on mount only
   useEffect(() => {
     loadPapers();
-  }, [loadPapers]);
+  }, []); // Empty dependency array to run only once
 
-  // Search when query changes
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchQuery) {
-        searchPapers(searchQuery);
-      } else {
-        loadPapers();
-      }
-    }, 300); // Debounce search
+  // Disabled auto-search to prevent infinite loops
+  // Search only when explicitly triggered by user
+  // useEffect(() => {
+  //   const timeoutId = setTimeout(() => {
+  //     if (searchQuery.trim()) {
+  //       searchPapers(searchQuery);
+  //     } else {
+  //       loadPapers();
+  //     }
+  //   }, 500); // 500ms debounce to prevent too many requests
 
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, searchPapers, loadPapers]);
+  //   return () => clearTimeout(timeoutId);
+  // }, [searchQuery, searchPapers, loadPapers]);
 
   return {
     papers,

@@ -1,5 +1,5 @@
 // API service for connecting to the Flask backend
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5002';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5003';
 
 export interface Paper {
   id: string;
@@ -23,6 +23,11 @@ export interface Paper {
   doi: string;
   osdrLink: string;
   taskBookLink?: string;
+  score?: number;
+  highlights?: {
+    abstract?: string[];
+    title?: string[];
+  };
 }
 
 export interface ApiResponse<T> {
@@ -84,9 +89,28 @@ class ApiService {
     return this.request('/api/papers/titles');
   }
 
-  // Search papers
-  async searchPapers(query: string): Promise<ApiResponse<Paper[]>> {
-    return this.request(`/api/papers/search?q=${encodeURIComponent(query)}`);
+  // Search papers with filters
+  async searchPapers(query: string, filters?: {
+    year_gte?: number;
+    year_lte?: number;
+    organism?: string;
+    mission?: string;
+    environment?: string;
+    hasOSDR?: boolean;
+    hasDOI?: boolean;
+  }): Promise<ApiResponse<Paper[]>> {
+    const params = new URLSearchParams();
+    if (query) params.append('q', query);
+    if (filters) {
+      if (filters.year_gte) params.append('year_gte', filters.year_gte.toString());
+      if (filters.year_lte) params.append('year_lte', filters.year_lte.toString());
+      if (filters.organism) params.append('organism', filters.organism);
+      if (filters.mission) params.append('mission', filters.mission);
+      if (filters.environment) params.append('environment', filters.environment);
+      if (filters.hasOSDR !== undefined) params.append('hasOSDR', filters.hasOSDR.toString());
+      if (filters.hasDOI !== undefined) params.append('hasDOI', filters.hasDOI.toString());
+    }
+    return this.request(`/api/papers/search?${params.toString()}`);
   }
 
   // Enrich all papers with PMC data

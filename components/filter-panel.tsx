@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ChevronDown, ChevronRight, RotateCcw, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -22,16 +22,17 @@ interface FilterPanelProps {
     hasOSDR: boolean
   }
   onFiltersChange: (filters: any) => void
+  onSearchWithFilters?: (filters: any) => void
 }
 
-const ORGANISMS = ["Human", "Mouse", "Plant", "Microbe", "Rat", "C. elegans", "Drosophila"]
-const MISSIONS = ["ISS", "Space Shuttle", "Artemis", "Analog Studies", "Parabolic Flight"]
-const ENVIRONMENTS = ["Microgravity", "Radiation", "Hypergravity", "Isolation", "Confinement"]
+const ORGANISMS = ["Human", "Mouse", "Plant", "Microbe", "Rat", "C. elegans", "Drosophila", "Unknown"]
+const MISSIONS = ["ISS", "Space Shuttle", "Artemis", "Analog Studies", "Parabolic Flight", "Unknown Mission"]
+const ENVIRONMENTS = ["Microgravity", "Radiation", "Hypergravity", "Isolation", "Confinement", "Space Environment"]
 const TISSUES = ["Bone", "Muscle", "Cardiovascular", "Immune", "Neural", "Skin"]
 const ASSAYS = ["RNA-seq", "Proteomics", "Metabolomics", "Imaging", "Behavioral"]
 const OUTCOMES = ["Up-regulated", "Down-regulated", "Morphology Change", "Behavioral Change"]
 
-export function FilterPanel({ filters, onFiltersChange }: FilterPanelProps) {
+export function FilterPanel({ filters, onFiltersChange, onSearchWithFilters }: FilterPanelProps) {
   const [expandedSections, setExpandedSections] = useState({
     year: true,
     organism: true,
@@ -66,27 +67,30 @@ export function FilterPanel({ filters, onFiltersChange }: FilterPanelProps) {
     })
   }
 
+  // Remove automatic search trigger - let parent handle when to search
+
   return (
     <ScrollArea className="h-full">
       <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Filters</h3>
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 transition-colors hover:bg-accent"
-              onClick={resetFilters}
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span className="sr-only">Reset filters</span>
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 transition-colors hover:bg-accent">
-              <Save className="h-3.5 w-3.5" />
-              <span className="sr-only">Save filter set</span>
-            </Button>
-          </div>
-        </div>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Filters</h3>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 transition-colors hover:bg-accent"
+                  onClick={resetFilters}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span className="sr-only">Reset filters</span>
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 transition-colors hover:bg-accent">
+                  <Save className="h-3.5 w-3.5" />
+                  <span className="sr-only">Save filter set</span>
+                </Button>
+              </div>
+            </div>
+
 
         {/* Year Range */}
         <FilterSection title="Year Range" expanded={expandedSections.year} onToggle={() => toggleSection("year")}>

@@ -6,7 +6,12 @@ import { OverviewCharts } from "@/components/overview-charts"
 import { TopicClusters } from "@/components/topic-clusters"
 import { KnowledgeGraph } from "@/components/knowledge-graph"
 
-export function InsightsTabs() {
+interface InsightsTabsProps {
+  papers?: any[]
+  searchQuery?: string
+}
+
+export function InsightsTabs({ papers, searchQuery }: InsightsTabsProps) {
   return (
     <div className="border-b border-border bg-muted/30">
       <Tabs defaultValue="overview" className="w-full">
@@ -37,7 +42,7 @@ export function InsightsTabs() {
         </div>
 
         <TabsContent value="overview" className="m-0 p-6 pt-4">
-          <OverviewCharts />
+          <OverviewCharts papers={papers} searchQuery={searchQuery} />
         </TabsContent>
 
         <TabsContent value="topics" className="m-0 p-6 pt-4">
