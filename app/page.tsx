@@ -9,9 +9,10 @@ import { ResultsList } from "@/components/results-list"
 import { ChatbotPanel } from "@/components/chatbot-panel"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MessageSquare, FileSearch } from "lucide-react"
+import { usePapers } from "@/hooks/use-papers"
 
 export default function Home() {
-  const [searchQuery, setSearchQuery] = useState("")
+  const { papers, loading, error, searchQuery, setSearchQuery } = usePapers()
   const [filters, setFilters] = useState({
     yearRange: [2000, 2024] as [number, number],
     organisms: [] as string[],
@@ -61,7 +62,13 @@ export default function Home() {
               <TabsContent value="search" className="flex-1 flex flex-col m-0">
                 <InsightsTabs />
                 <div className="flex-1 overflow-y-auto">
-                  <ResultsList searchQuery={searchQuery} filters={filters} />
+                  <ResultsList 
+                    searchQuery={searchQuery} 
+                    filters={filters} 
+                    papers={papers}
+                    loading={loading}
+                    error={error}
+                  />
                 </div>
               </TabsContent>
 

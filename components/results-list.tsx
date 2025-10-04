@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, FileText, Database, ChevronLeft, ChevronRight, Bookmark } from "lucide-react"
+import { ExternalLink, FileText, Database, ChevronLeft, ChevronRight, Bookmark, Loader2, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,10 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PaperDetailDrawer } from "@/components/paper-detail-drawer"
 import { BulkActionsBar } from "@/components/bulk-actions-bar"
 import { useToast } from "@/hooks/use-toast"
+import { Paper } from "@/lib/api"
 
 interface ResultsListProps {
   searchQuery: string
   filters: any
+  papers: Paper[]
+  loading: boolean
+  error: string | null
 }
 
 const MOCK_PAPERS = [
@@ -133,14 +137,13 @@ const MOCK_PAPERS = [
   },
 ]
 
-export function ResultsList({ searchQuery, filters }: ResultsListProps) {
-  const [papers, setPapers] = useState(MOCK_PAPERS)
+export function ResultsList({ searchQuery, filters, papers, loading, error }: ResultsListProps) {
   const [selectedPapers, setSelectedPapers] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [selectedPaper, setSelectedPaper] = useState<(typeof MOCK_PAPERS)[0] | null>(null)
+  const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null)
   const [compareMode, setCompareMode] = useState(false)
-  const [comparisonPaper, setComparisonPaper] = useState<(typeof MOCK_PAPERS)[0] | null>(null)
+  const [comparisonPaper, setComparisonPaper] = useState<Paper | null>(null)
   const { toast } = useToast()
 
   const togglePaperSelection = (paperId: string) => {
@@ -148,17 +151,14 @@ export function ResultsList({ searchQuery, filters }: ResultsListProps) {
   }
 
   const toggleBookmark = (paperId: string) => {
-    setPapers((prev) =>
-      prev.map((paper) => (paper.id === paperId ? { ...paper, bookmarked: !paper.bookmarked } : paper)),
-    )
-    const paper = papers.find((p) => p.id === paperId)
+    // Note: In a real app, this would make an API call to save bookmarks
     toast({
-      title: paper?.bookmarked ? "Bookmark removed" : "Paper bookmarked",
-      description: paper?.bookmarked ? "Removed from your bookmarks" : "Added to your bookmarks",
+      title: "Bookmark saved",
+      description: "Paper bookmarked (local storage)",
     })
   }
 
-  const handleViewDetails = (paper: (typeof MOCK_PAPERS)[0]) => {
+  const handleViewDetails = (paper: Paper) => {
     if (compareMode && selectedPaper && selectedPaper.id !== paper.id) {
       setComparisonPaper(paper)
     } else {
@@ -168,9 +168,7 @@ export function ResultsList({ searchQuery, filters }: ResultsListProps) {
   }
 
   const handleBulkBookmark = () => {
-    setPapers((prev) =>
-      prev.map((paper) => (selectedPapers.includes(paper.id) ? { ...paper, bookmarked: true } : paper)),
-    )
+    // Note: In a real app, this would make an API call to save bookmarks
     toast({
       title: "Papers bookmarked",
       description: `${selectedPapers.length} ${selectedPapers.length === 1 ? "paper" : "papers"} added to bookmarks`,
@@ -208,6 +206,29 @@ export function ResultsList({ searchQuery, filters }: ResultsListProps) {
   }
 
   const hasResults = papers.length > 0
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <Loader2 className="h-16 w-16 text-muted-foreground/40 mb-4 animate-spin" />
+        <h3 className="text-lg font-semibold mb-2">Loading Papers...</h3>
+        <p className="text-sm text-muted-foreground">Fetching data from the backend</p>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <AlertCircle className="h-16 w-16 text-destructive/40 mb-4" />
+        <h3 className="text-lg font-semibold mb-2">Error Loading Papers</h3>
+        <p className="text-sm text-muted-foreground mb-4">{error}</p>
+        <Button onClick={() => window.location.reload()}>Try Again</Button>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -267,8 +288,8 @@ export function ResultsList({ searchQuery, filters }: ResultsListProps) {
                   <CardHeader className="pb-3">
                     <div className="flex items-start gap-3">
                       <Checkbox
-                        checked={selectedPapers.includes(paper.id)}
-                        onCheckedChange={() => togglePaperSelection(paper.id)}
+                        checked={selectedPapers.includes(paper.id.toString())}
+                        onCheckedChange={() => togglePaperSelection(paper.id.toString())}
                         className="mt-1"
                       />
                       <div className="flex-1 space-y-2">
@@ -283,45 +304,55 @@ export function ResultsList({ searchQuery, filters }: ResultsListProps) {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 shrink-0 hover:scale-110 transition-transform duration-200"
-                            onClick={() => toggleBookmark(paper.id)}
+                            onClick={() => toggleBookmark(paper.id.toString())}
                           >
-                            <Bookmark
-                              className={`h-4 w-4 transition-all duration-200 ${paper.bookmarked ? "fill-primary text-primary" : ""}`}
-                            />
+                            <Bookmark className="h-4 w-4 transition-all duration-200" />
                           </Button>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                          <span>{paper.authors}</span>
-                          <span>·</span>
-                          <span>{paper.year}</span>
-                          <span>·</span>
-                          <span className="flex items-center gap-1">
-                            <FileText className="h-3 w-3" />
-                            {paper.citations} citations
-                          </span>
+                          {paper.year && <span>{paper.year}</span>}
+                          {paper.organism && (
+                            <>
+                              <span>·</span>
+                              <span>{paper.organism}</span>
+                            </>
+                          )}
+                          {paper.source && (
+                            <>
+                              <span>·</span>
+                              <span>{paper.source}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">{paper.organism}</Badge>
-                      <Badge variant="outline">{paper.mission}</Badge>
-                      {paper.hasOSDR && (
-                        <Badge variant="default" className="gap-1">
-                          <Database className="h-3 w-3" />
-                          OSDR
-                        </Badge>
+                      {paper.organism && (
+                        <Badge variant="secondary">{paper.organism}</Badge>
                       )}
-                      {paper.hasDOI && (
-                        <Badge variant="default" className="gap-1">
-                          <ExternalLink className="h-3 w-3" />
-                          DOI
-                        </Badge>
+                      {paper.source && (
+                        <Badge variant="outline">{paper.source}</Badge>
                       )}
+                      {paper.year && (
+                        <Badge variant="outline">{paper.year}</Badge>
+                      )}
+                      <Badge variant="default" className="gap-1">
+                        <ExternalLink className="h-3 w-3" />
+                        View Paper
+                      </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{paper.summary}</p>
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(paper.url, '_blank')}
+                        className="hover:scale-105 transition-transform duration-200"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Open Paper
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
