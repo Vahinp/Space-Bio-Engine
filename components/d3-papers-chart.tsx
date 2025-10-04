@@ -38,8 +38,8 @@ export function D3PapersChart({ data, className }: D3PapersChartProps) {
     svg.selectAll("*").remove() // Clear previous renders
 
     const margin = { top: 20, right: 30, bottom: 70, left: 40 }
-    const width = 400 - margin.left - margin.right
-    const height = 300 - margin.top - margin.bottom
+    const width = 800 - margin.left - margin.right
+    const height = 400 - margin.top - margin.bottom
 
     // Create main group
     const g = svg
@@ -214,7 +214,7 @@ export function D3PapersChart({ data, className }: D3PapersChartProps) {
     })
 
     // X axis with angled labels - dynamic ticks
-    const yearCount = data.length
+    const yearCount = chartData.length
     const tickCount = Math.min(yearCount, 8) // Max 8 ticks for readability
     
     g.append("g")
@@ -271,7 +271,7 @@ export function D3PapersChart({ data, className }: D3PapersChartProps) {
       </CardHeader>
       <CardContent>
         <div className="relative">
-          <svg ref={svgRef} className="w-full h-[300px]" />
+          <svg ref={svgRef} className="w-full h-[400px]" />
           {hoveredPoint && (
             <div className="absolute top-4 right-4 bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-lg border text-sm">
               <div className="font-semibold">{hoveredPoint.year}</div>

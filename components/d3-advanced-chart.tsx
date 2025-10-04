@@ -84,8 +84,8 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
     svg.selectAll("*").remove()
 
     const margin = { top: 30, right: 50, bottom: 80, left: 60 }
-    const width = 500 - margin.left - margin.right
-    const height = 350 - margin.top - margin.bottom
+    const width = 900 - margin.left - margin.right
+    const height = 500 - margin.top - margin.bottom
 
     const g = svg
       .attr("width", width + margin.left + margin.right)
@@ -292,7 +292,7 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
       </CardHeader>
       <CardContent>
         <div className="relative">
-          <svg ref={svgRef} className="w-full h-[350px]" />
+          <svg ref={svgRef} className="w-full h-[500px]" />
           {hoveredPoint && (
             <div className="absolute top-4 right-4 bg-popover text-popover-foreground px-4 py-3 rounded-lg shadow-xl border text-sm backdrop-blur-sm">
               <div className="font-bold text-lg">{hoveredPoint.year}</div>
