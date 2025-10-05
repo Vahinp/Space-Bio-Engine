@@ -18,7 +18,7 @@ yarn-error.log*
 
 # env files
 .env*
-.azure_openai.env
+azure_openai.env*
 
 # vercel
 .vercel
