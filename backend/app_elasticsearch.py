@@ -47,8 +47,12 @@ ES_USERNAME = os.getenv("ES_USERNAME", "elastic")
 ES_PASSWORD = os.getenv("ES_PASSWORD", "elasSer12!")
 INDEX_NAME  = os.getenv("ES_INDEX", "space_bio_papers")
 
+<<<<<<< HEAD
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyAFKyyGqKGWM0W2J1gPzRtmhzAYw6fHKhw")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+=======
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")  # Using Gemini 2.5 Flash for speed and cost
+>>>>>>> dd1a3cc2a1961a8110753479412518ff8470b99c
 
 
 # ------------------------------------------------------------------------------
@@ -453,9 +457,10 @@ def create_app():
             return {"error": str(e)}, 500
 
     # ------------------------------------------------------------------------------
-    # OpenAI Chatbot Endpoints
+    # Gemini Chatbot Endpoints
     # ------------------------------------------------------------------------------
     
+<<<<<<< HEAD
     # Initialize Gemini client with proper error handling
     if not GEMINI_API_KEY:
         print("⚠️  Warning: GEMINI_API_KEY not found. AI features will be disabled.")
@@ -469,6 +474,11 @@ def create_app():
         except Exception as e:
             print(f"❌ Failed to initialize Gemini client: {e}")
             gemini_client = None
+=======
+    # Initialize Gemini client
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    gemini_model = genai.GenerativeModel(GEMINI_MODEL)
+>>>>>>> dd1a3cc2a1961a8110753479412518ff8470b99c
     
     def safe_extract_text_from_response(response):
         """Safely extract text from Gemini response regardless of finish_reason"""
@@ -516,6 +526,7 @@ def create_app():
             data = request.get_json(force=True) or {}
             messages = data.get("messages", [{"role": "user", "content": "Hello!"}])
             
+<<<<<<< HEAD
             # Build conversation text for Gemini
             system_prompt = "You are a NASA space biology research assistant. You help researchers understand the effects of spaceflight on biological systems. You can discuss scientific topics including bone density, muscle loss, cardiovascular changes, and other physiological effects of microgravity. Please provide accurate, scientific information based on research findings."
             
@@ -590,9 +601,44 @@ def create_app():
                         return jsonify({"answer": f"I encountered an issue processing your request (code: {finish_reason}). Please try rephrasing your question."})
                 else:
                     return jsonify({"answer": "I'm sorry, I couldn't generate a response. Please try again with a different question."})
+=======
+            # Convert messages to Gemini format
+            # Gemini uses a different format - we need to convert from OpenAI format
+            conversation_text = ""
+            for msg in messages:
+                if msg.get("role") == "system":
+                    conversation_text += f"System: {msg.get('content', '')}\n\n"
+                elif msg.get("role") == "user":
+                    conversation_text += f"User: {msg.get('content', '')}\n\n"
+                elif msg.get("role") == "assistant":
+                    conversation_text += f"Assistant: {msg.get('content', '')}\n\n"
+            
+            # Add system context for space biology
+            system_context = "You are a helpful AI assistant specialized in space biology research. You can answer questions about space biology, research papers, and related topics. "
+            
+            # Create the prompt for Gemini
+            prompt = f"{system_context}\n\n{conversation_text.strip()}"
+            
+            # Generate response using Gemini
+            response = gemini_model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.2,
+                    max_output_tokens=512,
+                )
+            )
+            
+            answer = response.text if response.text else "I'm sorry, I couldn't generate a response."
+            return jsonify({"answer": answer})
+>>>>>>> dd1a3cc2a1961a8110753479412518ff8470b99c
             
         except Exception as e:
             print(f"[CHAT_ERROR] {e}")
+            # Check if it's a quota/billing error
+            if "quota" in str(e).lower() or "billing" in str(e).lower() or "api" in str(e).lower():
+                return jsonify({
+                    "answer": "I'm currently experiencing issues with my AI service. Please check your Gemini API key and try again later. In the meantime, you can explore the research papers and visualizations on this platform!"
+                })
             return jsonify({"error": "Chat service failed", "detail": str(e)}), 500
 
     @app.post("/api/chat-stream")
@@ -617,6 +663,7 @@ def create_app():
         
         def generate():
             try:
+<<<<<<< HEAD
                 # Build conversation text
                 system_prompt = "You are a NASA space biology research assistant. You help researchers understand the effects of spaceflight on biological systems. You can discuss scientific topics including bone density, muscle loss, cardiovascular changes, and other physiological effects of microgravity. Please provide accurate, scientific information based on research findings."
                 conversation_text = system_prompt + "\n\n"
@@ -663,6 +710,42 @@ def create_app():
                     for i, word in enumerate(words):
                         content = word + (" " if i < len(words) - 1 else "")
                         yield f"data: {json.dumps({'content': content})}\n\n"
+=======
+                # Convert messages to Gemini format
+                conversation_text = ""
+                for msg in messages:
+                    if msg.get("role") == "system":
+                        conversation_text += f"System: {msg.get('content', '')}\n\n"
+                    elif msg.get("role") == "user":
+                        conversation_text += f"User: {msg.get('content', '')}\n\n"
+                    elif msg.get("role") == "assistant":
+                        conversation_text += f"Assistant: {msg.get('content', '')}\n\n"
+                
+                # Add system context for space biology
+                system_context = "You are a helpful AI assistant specialized in space biology research. You can answer questions about space biology, research papers, and related topics. "
+                
+                # Create the prompt for Gemini
+                prompt = f"{system_context}\n\n{conversation_text.strip()}"
+                
+                # Generate response using Gemini (note: Gemini doesn't support streaming in the same way)
+                # We'll simulate streaming by sending the response in chunks
+                response = gemini_model.generate_content(
+                    prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.2,
+                        max_output_tokens=512,
+                    )
+                )
+                
+                # Simulate streaming by sending response in chunks
+                if response.text:
+                    words = response.text.split()
+                    for i, word in enumerate(words):
+                        yield f"data: {json.dumps({'content': word + ' '})}\n\n"
+                        # Small delay to simulate streaming
+                        import time
+                        time.sleep(0.05)
+>>>>>>> dd1a3cc2a1961a8110753479412518ff8470b99c
                 
                 # Send completion signal
                 yield "event: done\ndata: {}\n\n"
