@@ -1,10 +1,9 @@
 "use client"
 
-import { BarChart3, Tags, Network } from "lucide-react"
+import { BarChart3, Tags } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OverviewCharts } from "@/components/overview-charts"
 import { TopicClusters } from "@/components/topic-clusters"
-import { KnowledgeGraph } from "@/components/knowledge-graph"
 
 interface InsightsTabsProps {
   papers?: any[]
@@ -31,13 +30,6 @@ export function InsightsTabs({ papers, searchQuery }: InsightsTabsProps) {
               <Tags className="h-4 w-4 transition-transform duration-200 group-hover:rotate-12" />
               Topics
             </TabsTrigger>
-            <TabsTrigger
-              value="graph"
-              className="gap-2 transition-all duration-200 hover:scale-105 hover:bg-accent/50 active:scale-95 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm"
-            >
-              <Network className="h-4 w-4 transition-transform duration-200 group-hover:rotate-12" />
-              Knowledge Graph
-            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -47,10 +39,6 @@ export function InsightsTabs({ papers, searchQuery }: InsightsTabsProps) {
 
         <TabsContent value="topics" className="m-0 p-6 pt-4">
           <TopicClusters />
-        </TabsContent>
-
-        <TabsContent value="graph" className="m-0 p-0 h-screen">
-          <KnowledgeGraph papers={papers} searchQuery={searchQuery} />
         </TabsContent>
       </Tabs>
     </div>

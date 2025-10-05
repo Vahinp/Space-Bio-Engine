@@ -487,6 +487,11 @@ def create_app():
             
         except Exception as e:
             print(f"[CHAT_ERROR] {e}")
+            # Check if it's a quota/billing error
+            if "quota" in str(e).lower() or "billing" in str(e).lower():
+                return jsonify({
+                    "answer": "I'm currently experiencing billing issues with my AI service. Please check your OpenAI account billing settings and try again later. In the meantime, you can explore the research papers and visualizations on this platform!"
+                })
             return jsonify({"error": "Chat service failed", "detail": str(e)}), 500
 
     @app.post("/api/chat-stream")
