@@ -194,12 +194,12 @@ def create_app():
                 "authors": source.get('authors', 'Unknown Author'),
                 "mission": source.get('mission', 'Unknown Mission'),
                 "environment": source.get('environment', 'Space Environment'),
-                "summary": source.get('abstract', '')[:200] + "..." if len(source.get('abstract', '')) > 200 else source.get('abstract', ''),
+                "summary": (source.get('abstract') or '')[:200] + "..." if len(source.get('abstract') or '') > 200 else (source.get('abstract') or ''),
                 "citations": source.get('citations', 0),
                 "hasOSDR": source.get('hasOSDR', False),
                 "hasDOI": source.get('hasDOI', False),
                 "bookmarked": False,  # Not stored in ES yet
-                "abstract": source.get('abstract', ''),
+                "abstract": source.get('abstract') or '',
                 "keyResults": [],  # Not stored in ES yet
                 "methods": "Not specified",  # Not stored in ES yet
                 "conclusions": "Not specified",  # Not stored in ES yet

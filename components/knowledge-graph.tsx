@@ -104,11 +104,17 @@ export function KnowledgeGraph({ papers, searchQuery, className }: KnowledgeGrap
       .attr("height", height)
       .attr("fill", "#1f2937")
 
-    // Create simple simulation
+    // Create mind map-style simulation
     const simulation = d3.forceSimulation(nodes)
-      .force("link", d3.forceLink(links).id((d: any) => d.id).distance(100))
-      .force("charge", d3.forceManyBody().strength(-300))
+      .force("link", d3.forceLink(links).id((d: any) => d.id).distance(80))
+      .force("charge", d3.forceManyBody().strength(-200))
       .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("radial", d3.forceRadial((d: any, i: number) => {
+        // Create radial zones based on paper importance
+        if (d.hasOSDR) return 50 + (i % 3) * 30  // OSDR papers closer to center
+        if (d.hasDOI) return 100 + (i % 4) * 40  // DOI papers in middle ring
+        return 150 + (i % 5) * 50  // Other papers in outer rings
+      }, width / 2, height / 2).strength(0.1))
 
     // Create simple links
     const link = svg.append("g")
@@ -119,12 +125,16 @@ export function KnowledgeGraph({ papers, searchQuery, className }: KnowledgeGrap
       .style("stroke-width", 1)
       .style("stroke-opacity", 0.5)
 
-    // Create simple nodes
+    // Create node groups for circles and text
     const node = svg.append("g")
-      .selectAll("circle")
+      .selectAll<SVGGElement, PaperNode>("g")
       .data(nodes)
-      .join("circle")
-      .attr("r", 20)
+      .join("g")
+      .call(drag(simulation))
+
+    // Add circles
+    node.append("circle")
+      .attr("r", 25)
       .attr("fill", (d: any) => {
         if (d.hasOSDR) return "#10b981"
         if (d.hasDOI) return "#3b82f6"
@@ -133,14 +143,36 @@ export function KnowledgeGraph({ papers, searchQuery, className }: KnowledgeGrap
       .attr("stroke", "#ffffff")
       .attr("stroke-width", 2)
       .style("cursor", "pointer")
-      .call(drag(simulation))
+
+    // Add paper titles as text labels
+    node.append("text")
+      .text((d: any) => {
+        const title = d.title || 'Untitled'
+        return title.length > 30 ? title.substring(0, 30) + '...' : title
+      })
+      .attr("text-anchor", "middle")
+      .attr("dy", "0.35em")
+      .style("font-size", "10px")
+      .style("font-weight", "600")
+      .style("fill", "#ffffff")
+      .style("pointer-events", "none")
+      .style("text-shadow", "0 1px 2px rgba(0, 0, 0, 0.8)")
+
+    // Add year labels
+    node.append("text")
+      .text((d: any) => d.year)
+      .attr("text-anchor", "middle")
+      .attr("dy", "1.5em")
+      .style("font-size", "8px")
+      .style("fill", "#d1d5db")
+      .style("pointer-events", "none")
 
     // Simple tooltips
     node.append("title")
-      .text((d: any) => `${d.title}\nYear: ${d.year}`)
+      .text((d: any) => `${d.title}\nYear: ${d.year}\nAuthors: ${d.authors}`)
 
     // Enhanced zoom with pan
-    const zoom = d3.zoom()
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 4])
       .on("zoom", (event) => {
         // Apply zoom to all elements
@@ -151,7 +183,9 @@ export function KnowledgeGraph({ papers, searchQuery, className }: KnowledgeGrap
 
     // Add keyboard zoom shortcuts
     handleKeyDown = (event: KeyboardEvent) => {
-      const currentTransform = d3.zoomTransform(svg.node())
+      const svgNode = svg.node()
+      if (!svgNode) return
+      const currentTransform = d3.zoomTransform(svgNode)
       let newScale = currentTransform.k
       
       if (event.key === '+' || event.key === '=') {
@@ -172,21 +206,68 @@ export function KnowledgeGraph({ papers, searchQuery, className }: KnowledgeGrap
     // Add keyboard event listener
     document.addEventListener('keydown', handleKeyDown)
 
+    // Add legend
+    const legend = svg.append("g")
+      .attr("class", "legend")
+      .attr("transform", `translate(${width - 200}, 20)`)
+
+    // Legend background
+    legend.append("rect")
+      .attr("width", 180)
+      .attr("height", 100)
+      .attr("fill", "rgba(31, 41, 55, 0.9)")
+      .attr("stroke", "#4b5563")
+      .attr("rx", 6)
+
+    // Legend title
+    legend.append("text")
+      .attr("x", 90)
+      .attr("y", 20)
+      .attr("text-anchor", "middle")
+      .style("fill", "#e5e7eb")
+      .style("font-size", "14px")
+      .style("font-weight", "600")
+      .text("Paper Types")
+
+    // Legend items
+    const legendItems = [
+      { label: "OSDR Available", color: "#10b981", y: 40 },
+      { label: "DOI Available", color: "#3b82f6", y: 60 },
+      { label: "No Special Access", color: "#6b7280", y: 80 }
+    ]
+
+    legendItems.forEach((item) => {
+      legend.append("circle")
+        .attr("cx", 20)
+        .attr("cy", item.y)
+        .attr("r", 8)
+        .attr("fill", item.color)
+      
+      legend.append("text")
+        .attr("x", 35)
+        .attr("y", item.y + 3)
+        .style("fill", "#e5e7eb")
+        .style("font-size", "11px")
+        .text(item.label)
+    })
+
     // Event handlers
     node
       .on("mouseover", (event, d: any) => {
         setHoveredNode(d)
         d3.select(event.currentTarget)
+          .select("circle")
           .transition()
           .duration(100)
-          .attr("r", 25)
+          .attr("r", 30)
       })
       .on("mouseout", (event, d: any) => {
         setHoveredNode(null)
         d3.select(event.currentTarget)
+          .select("circle")
           .transition()
           .duration(100)
-          .attr("r", 20)
+          .attr("r", 25)
       })
 
     // Update positions
@@ -198,8 +279,7 @@ export function KnowledgeGraph({ papers, searchQuery, className }: KnowledgeGrap
         .attr("y2", (d: any) => d.target.y)
       
       node
-        .attr("cx", (d: any) => d.x)
-        .attr("cy", (d: any) => d.y)
+        .attr("transform", (d: any) => `translate(${d.x},${d.y})`)
     })
 
     // Simple drag
@@ -221,7 +301,7 @@ export function KnowledgeGraph({ papers, searchQuery, className }: KnowledgeGrap
         d.fy = null
       }
 
-      return d3.drag()
+      return d3.drag<SVGGElement, PaperNode, unknown>()
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useRef } from "react"
 import { AppHeader } from "@/components/app-header"
 import { SearchBar } from "@/components/search-bar"
 import { FilterPanel } from "@/components/filter-panel"
@@ -25,6 +25,9 @@ export default function Home() {
     outcomes: [] as string[],
     hasOSDR: false,
   })
+  
+  // Ref to store timeout ID for debouncing
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Convert frontend filters to Elasticsearch format
   const convertFiltersToES = (frontendFilters: typeof filters) => {
@@ -58,9 +61,14 @@ export default function Home() {
     searchPapers(query, esFilters)
   }
 
-  // Handle individual filter changes and trigger search
-  const handleFiltersChange = (newFilters: typeof filters) => {
+  // Handle individual filter changes with debouncing
+  const handleFiltersChange = useCallback((newFilters: typeof filters) => {
     setFilters(newFilters)
+    
+    // Clear previous timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
     
     // Build search query from filters
     const filterTerms = []
@@ -93,14 +101,16 @@ export default function Home() {
       filterTerms.push(`year:${newFilters.yearRange[0]}-${newFilters.yearRange[1]}`)
     }
     
-    // Update search query and trigger search immediately
+    // Update search query
     const filterQuery = filterTerms.join(' ')
     setSearchQuery(filterQuery)
     
-    // Trigger search with filters
-    const esFilters = convertFiltersToES(newFilters)
-    searchPapers(filterQuery, esFilters)
-  }
+    // Debounce the search to prevent too many requests
+    timeoutRef.current = setTimeout(() => {
+      const esFilters = convertFiltersToES(newFilters)
+      searchPapers(filterQuery, esFilters)
+    }, 500) // 500ms debounce
+  }, [searchPapers, setSearchQuery])
 
   // Handle search query changes (no auto-search to prevent loops)
   const handleSearchQueryChange = (query: string) => {
