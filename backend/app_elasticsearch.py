@@ -19,9 +19,10 @@ import json
 import requests
 from typing import Dict, Any, List
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
+from openai import OpenAI
 
 # Load .env early (OPENAI_API_KEY, OPENAI_MODEL, ES_*)
 load_dotenv()
@@ -449,6 +450,95 @@ def create_app():
         except Exception as e:
             print(f"Error in add_paper: {e}")
             return {"error": str(e)}, 500
+
+    # ------------------------------------------------------------------------------
+    # OpenAI Chatbot Endpoints
+    # ------------------------------------------------------------------------------
+    
+    # Initialize OpenAI client
+    openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    
+    @app.post("/api/chat")
+    def chat():
+        """Simple non-streaming chat endpoint"""
+        try:
+            data = request.get_json(force=True) or {}
+            messages = data.get("messages", [{"role": "user", "content": "Hello!"}])
+            
+            # Add system message for space biology context
+            system_message = {
+                "role": "system", 
+                "content": "You are a helpful AI assistant specialized in space biology research. You can answer questions about space biology, research papers, and related topics."
+            }
+            
+            # Insert system message at the beginning if not already present
+            if not messages or messages[0].get("role") != "system":
+                messages.insert(0, system_message)
+            
+            response = openai_client.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=messages,
+                temperature=0.2,
+                max_tokens=512
+            )
+            
+            answer = response.choices[0].message.content if response.choices else ""
+            return jsonify({"answer": answer})
+            
+        except Exception as e:
+            print(f"[CHAT_ERROR] {e}")
+            return jsonify({"error": "Chat service failed", "detail": str(e)}), 500
+
+    @app.post("/api/chat-stream")
+    def chat_stream():
+        """Streaming chat endpoint using Server-Sent Events (SSE)"""
+        # Get request data at the function level
+        data = request.get_json(force=True) or {}
+        messages = data.get("messages", [{"role": "user", "content": "Hello!"}])
+        
+        # Add system message for space biology context
+        system_message = {
+            "role": "system", 
+            "content": "You are a helpful AI assistant specialized in space biology research. You can answer questions about space biology, research papers, and related topics."
+        }
+        
+        # Insert system message at the beginning if not already present
+        if not messages or messages[0].get("role") != "system":
+            messages.insert(0, system_message)
+        
+        def generate():
+            try:
+                
+                # Create streaming response
+                stream = openai_client.chat.completions.create(
+                    model=OPENAI_MODEL,
+                    messages=messages,
+                    temperature=0.2,
+                    stream=True
+                )
+                
+                for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        yield f"data: {json.dumps({'content': content})}\n\n"
+                
+                # Send completion signal
+                yield "event: done\ndata: {}\n\n"
+                
+            except Exception as e:
+                print(f"[CHAT_STREAM_ERROR] {e}")
+                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+        
+        return Response(
+            generate(),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            }
+        )
 
     return app
 

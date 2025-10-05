@@ -57,14 +57,13 @@ export function ChatbotPanel() {
 
     try {
       // Call AI backend (fallback mode)
-      const response = await fetch(`http://localhost:5001/api/chat/context`, {
+      const response = await fetch(`http://localhost:5003/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
-          searchQuery: messageContent // Use the current question as search context
+          messages: [...messages, userMessage]
         }),
       })
 
