@@ -37,6 +37,8 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
   const processSearchResults = (papers: any[]): PaperData[] => {
     if (!papers || papers.length === 0) return defaultData
     
+    console.log("D3 Chart: Processing papers for chart", { count: papers.length, sampleYears: papers.slice(0, 5).map(p => p.year) })
+    
     // Group papers by year, filtering for valid years (1900-current)
     const yearGroups = papers.reduce((acc, paper) => {
       const yearNum = paper.year ? Number(paper.year) : null
@@ -47,11 +49,13 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
       return acc
     }, {} as Record<string, number>)
     
+    console.log("D3 Chart: Year groups", yearGroups)
+    
     // Convert to chart data format
     const processedData = Object.entries(yearGroups)
       .map(([year, count]) => ({
         year,
-        count,
+        count: count as number,
         category: "Search Results"
       }))
       .sort((a, b) => Number(a.year) - Number(b.year))
