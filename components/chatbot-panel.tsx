@@ -77,7 +77,7 @@ export function ChatbotPanel() {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: data.answer || "I'm sorry, I couldn't generate a response. Please try again.",
-        citations: [] // Could be enhanced to extract citations from the response
+        citations: []
       }
       
       setMessages((prev) => [...prev, assistantMessage])

@@ -92,6 +92,8 @@ export function AIChatbot({ className }: ChatbotProps) {
     }
   }
 
+  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     sendMessage(input)
