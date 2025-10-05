@@ -55,31 +55,44 @@ export function ChatbotPanel() {
     setInput("")
     setIsLoading(true)
 
-    // Simulate AI response with streaming
-    setTimeout(() => {
+    try {
+      // Call Azure OpenAI backend
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/chat/context`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMessage],
+          searchQuery: messageContent // Use the current question as search context
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response')
+      }
+
+      const data = await response.json()
+      
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content:
-          "Based on the research papers in the database, microgravity has significant effects on bone density. Studies show that astronauts experience approximately 1-2% bone mineral density loss per month during spaceflight, particularly in weight-bearing bones like the spine, hips, and legs.\n\nKey findings include:\n\n1. **Rate of Loss**: The average bone density loss is about 1.5% per month, which is significantly higher than age-related bone loss on Earth (1% per year).\n\n2. **Countermeasures**: Resistance exercise protocols using the Advanced Resistive Exercise Device (ARED) on the ISS have shown to reduce bone loss by approximately 40%.\n\n3. **Recovery**: Post-flight recovery typically takes 6-12 months, depending on mission duration and exercise compliance during the mission.\n\n4. **Mechanisms**: The loss is attributed to reduced mechanical loading, altered calcium metabolism, and changes in bone remodeling processes.\n\nThese findings are critical for planning long-duration missions beyond low Earth orbit, where countermeasures will need to be even more effective.",
-        citations: [
-          {
-            id: "1",
-            title: "Microgravity-Induced Changes in Bone Density and Muscle Atrophy in Long-Duration Spaceflight",
-            authors: "Smith, J., Johnson, M., Williams, K.",
-            year: 2023,
-          },
-          {
-            id: "5",
-            title: "Bone Mineral Density Changes During ISS Missions: A 10-Year Analysis",
-            authors: "Brown, T., Davis, L.",
-            year: 2022,
-          },
-        ],
+        content: data.answer || "I'm sorry, I couldn't generate a response. Please try again.",
+        citations: [] // Could be enhanced to extract citations from the response
       }
+      
       setMessages((prev) => [...prev, assistantMessage])
+    } catch (error) {
+      console.error('Error calling AI backend:', error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "I'm sorry, I'm having trouble connecting to the AI service. Please check your configuration and try again.",
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
