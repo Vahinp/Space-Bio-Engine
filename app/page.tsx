@@ -8,11 +8,12 @@ import { InsightsTabs } from "@/components/insights-tabs"
 import { ResultsList } from "@/components/results-list"
 import { ChatbotPanel } from "@/components/chatbot-panel"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MessageSquare, FileSearch, Database, Loader2 } from "lucide-react"
+import { MessageSquare, FileSearch, Database, Loader2, Network } from "lucide-react"
+import Link from "next/link"
 import { usePapers } from "@/hooks/use-papers"
 
 export default function Home() {
-  const { papers, loading, error, searchQuery, setSearchQuery, searchPapers, enriching, enrichAllPapers, enrichmentStatus } = usePapers()
+  const { papers, loading, error, searchQuery, setSearchQuery, searchPapers } = usePapers()
   // Calculate initial year range from papers
   const [filters, setFilters] = useState({
     yearRange: [1900, new Date().getFullYear()] as [number, number],
@@ -129,29 +130,13 @@ export default function Home() {
                           onSearchClick={handleSearchClick} 
                         />
                       </div>
-                  <button
-                    onClick={enrichAllPapers}
-                    disabled={enriching}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {enriching ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Database className="h-4 w-4" />
-                    )}
-                    {enriching ? 'Enriching...' : 'Enrich Papers'}
-                  </button>
+                  <Link href="/visualize">
+                    <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
+                      <Network className="h-4 w-4" />
+                      Visualize
+                    </button>
+                  </Link>
                 </div>
-                {enrichmentStatus && (
-                  <div className="mt-3 p-3 bg-muted rounded-md text-sm">
-                    <div className="flex items-center gap-4">
-                      <span>Total: {enrichmentStatus.total}</span>
-                      <span className="text-green-600">Enriched: {enrichmentStatus.enriched}</span>
-                      <span className="text-yellow-600">Skipped: {enrichmentStatus.skipped}</span>
-                      <span className="text-red-600">Errors: {enrichmentStatus.errors}</span>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 

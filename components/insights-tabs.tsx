@@ -49,8 +49,8 @@ export function InsightsTabs({ papers, searchQuery }: InsightsTabsProps) {
           <TopicClusters />
         </TabsContent>
 
-        <TabsContent value="graph" className="m-0 p-6 pt-4">
-          <KnowledgeGraph />
+        <TabsContent value="graph" className="m-0 p-0 h-screen">
+          <KnowledgeGraph papers={papers} searchQuery={searchQuery} />
         </TabsContent>
       </Tabs>
     </div>

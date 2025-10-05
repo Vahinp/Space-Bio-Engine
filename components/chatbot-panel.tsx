@@ -56,8 +56,8 @@ export function ChatbotPanel() {
     setIsLoading(true)
 
     try {
-      // Call Azure OpenAI backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/chat/context`, {
+      // Call AI backend (fallback mode)
+      const response = await fetch(`http://localhost:5001/api/chat/context`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
