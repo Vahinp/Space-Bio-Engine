@@ -94,14 +94,15 @@ def create_app():
                     "functions": [
                         {
                             "gauss": {
-                                "date": {
-                                    "origin": "now",
-                                    "scale": "365d",
+                                "year": {
+                                    "origin": 2025,   # current year as a number
+                                    "scale": 5,       # roughly 5-year half-life
                                     "decay": 0.5
                                 }
                             }
                         }
                     ],
+
                     "score_mode": "sum",
                     "boost_mode": "sum"
                 }
@@ -184,7 +185,7 @@ def create_app():
         for hit in hits:
             source = hit['_source']
             result = {
-                "id": source['paper_id'],
+                "id": source.get('paper_id') or source.get('id'),
                 "title": source['title'],
                 "url": source['url'],
                 "organism": source.get('organism'),
@@ -231,7 +232,7 @@ def create_app():
                 for hit in fallback_hits:
                     source = hit['_source']
                     result = {
-                        "id": source['paper_id'],
+                        "id": source.get('paper_id') or source.get('id'),
                         "title": source['title'],
                         "url": source['url'],
                         "organism": source.get('organism'),
