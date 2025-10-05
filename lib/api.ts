@@ -93,9 +93,9 @@ class ApiService {
   async searchPapers(query: string, filters?: {
     year_gte?: number;
     year_lte?: number;
-    organism?: string;
-    mission?: string;
-    environment?: string;
+    organism?: string | string[];
+    mission?: string | string[];
+    environment?: string | string[];
     hasOSDR?: boolean;
     hasDOI?: boolean;
   }, limit: number = 1000): Promise<ApiResponse<Paper[]>> {
@@ -105,9 +105,9 @@ class ApiService {
     if (filters) {
       if (filters.year_gte) params.append('year_gte', filters.year_gte.toString());
       if (filters.year_lte) params.append('year_lte', filters.year_lte.toString());
-      if (filters.organism) params.append('organism', filters.organism);
-      if (filters.mission) params.append('mission', filters.mission);
-      if (filters.environment) params.append('environment', filters.environment);
+      if (filters.organism) params.append('organism', Array.isArray(filters.organism) ? filters.organism.join(',') : filters.organism);
+      if (filters.mission) params.append('mission', Array.isArray(filters.mission) ? filters.mission.join(',') : filters.mission);
+      if (filters.environment) params.append('environment', Array.isArray(filters.environment) ? filters.environment.join(',') : filters.environment);
       if (filters.hasOSDR !== undefined) params.append('hasOSDR', filters.hasOSDR.toString());
       if (filters.hasDOI !== undefined) params.append('hasDOI', filters.hasDOI.toString());
     }
@@ -147,6 +147,29 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ url }),
     });
+  }
+
+  // Yearly stats (counts by year) honoring filters
+  async getYearlyStats(filters?: {
+    year_gte?: number;
+    year_lte?: number;
+    organism?: string | string[];
+    mission?: string | string[];
+    environment?: string | string[];
+    hasOSDR?: boolean;
+    hasDOI?: boolean;
+  }): Promise<ApiResponse<{ counts: Record<string, number> }>> {
+    const params = new URLSearchParams();
+    if (filters) {
+      if (filters.year_gte) params.append('year_gte', filters.year_gte.toString());
+      if (filters.year_lte) params.append('year_lte', filters.year_lte.toString());
+      if (filters.organism) params.append('organism', Array.isArray(filters.organism) ? filters.organism.join(',') : filters.organism);
+      if (filters.mission) params.append('mission', Array.isArray(filters.mission) ? filters.mission.join(',') : filters.mission);
+      if (filters.environment) params.append('environment', Array.isArray(filters.environment) ? filters.environment.join(',') : filters.environment);
+      if (filters.hasOSDR !== undefined) params.append('hasOSDR', filters.hasOSDR.toString());
+      if (filters.hasDOI !== undefined) params.append('hasDOI', filters.hasDOI.toString());
+    }
+    return this.request(`/api/stats/yearly?${params.toString()}`);
   }
 }
 

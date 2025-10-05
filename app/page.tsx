@@ -36,15 +36,15 @@ export default function Home() {
       year_lte: frontendFilters.yearRange[1],
     }
 
-    // Only add filters if they have values
+    // Pass arrays (API will serialize as comma-separated lists)
     if (frontendFilters.organisms.length > 0) {
-      esFilters.organism = frontendFilters.organisms[0] // ES supports single value for now
+      esFilters.organism = frontendFilters.organisms
     }
     if (frontendFilters.missions.length > 0) {
-      esFilters.mission = frontendFilters.missions[0]
+      esFilters.mission = frontendFilters.missions
     }
     if (frontendFilters.environments.length > 0) {
-      esFilters.environment = frontendFilters.environments[0]
+      esFilters.environment = frontendFilters.environments
     }
     if (frontendFilters.hasOSDR) {
       esFilters.hasOSDR = true
@@ -94,12 +94,7 @@ export default function Home() {
     if (newFilters.hasOSDR) {
       filterTerms.push('hasOSDR:true')
     }
-    // Fixed year range from 1900 to current year
-    const minYear = 1900
-    const maxYear = new Date().getFullYear()
-    if (newFilters.yearRange[0] !== minYear || newFilters.yearRange[1] !== maxYear) {
-      filterTerms.push(`year:${newFilters.yearRange[0]}-${newFilters.yearRange[1]}`)
-    }
+    // Do NOT inject year into the textual query; years are passed via filters only
     
     // Update search query
     const filterQuery = filterTerms.join(' ')

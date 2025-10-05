@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import * as d3 from "d3"
+import { apiService } from "@/lib/api"
 
 interface PaperData {
   year: string
@@ -23,15 +24,10 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
   const [hoveredPoint, setHoveredPoint] = useState<PaperData | null>(null)
   const [selectedYear, setSelectedYear] = useState<string | null>(null)
   const [chartData, setChartData] = useState<PaperData[]>([])
+  const [bootstrapped, setBootstrapped] = useState(false)
 
   // Enhanced data with categories - showing recent years as default
-  const defaultData: PaperData[] = [
-    { year: "2020", count: 45, category: "Space Biology" },
-    { year: "2021", count: 52, category: "Space Biology" },
-    { year: "2022", count: 48, category: "Space Biology" },
-    { year: "2023", count: 67, category: "Space Biology" },
-    { year: "2024", count: 89, category: "Space Biology" },
-  ]
+  const defaultData: PaperData[] = []
 
   // Process search results into chart data
   const processSearchResults = (papers: any[]): PaperData[] => {
@@ -40,10 +36,11 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
     console.log("D3 Chart: Processing papers for chart", { count: papers.length, sampleYears: papers.slice(0, 5).map(p => p.year) })
     
     // Group papers by year, filtering for valid years (1900-current)
+    // Count years across full dataset (not just current page)
     const yearGroups = papers.reduce((acc, paper) => {
-      const yearNum = paper.year ? Number(paper.year) : null
-      if (yearNum && yearNum >= 1900 && yearNum <= new Date().getFullYear()) {
-        const year = yearNum.toString()
+      const yearNum = typeof paper.year === 'string' ? parseInt(paper.year, 10) : Number(paper.year)
+      if (Number.isFinite(yearNum) && yearNum >= 1900 && yearNum <= new Date().getFullYear()) {
+        const year = String(yearNum)
         acc[year] = (acc[year] || 0) + 1
       }
       return acc
@@ -72,9 +69,24 @@ export function D3AdvancedChart({ data, className, searchQuery, papers }: D3Adva
     } else if (data) {
       setChartData(data)
     } else {
-      setChartData(defaultData)
+      // On first load, fetch yearly stats from backend (all papers, no filters)
+      if (!bootstrapped) {
+        (async () => {
+          try {
+            const res = await apiService.getYearlyStats()
+            const counts = (res.data && (res.data as any).counts) || {}
+            const fullData: PaperData[] = Object.entries(counts)
+              .map(([year, count]) => ({ year: String(year), count: Number(count), category: "All Papers" }))
+              .sort((a, b) => Number(a.year) - Number(b.year))
+            setChartData(fullData)
+            setBootstrapped(true)
+          } catch (_e) {
+            setChartData(defaultData)
+          }
+        })()
+      }
     }
-  }, [papers, data])
+  }, [papers, data, bootstrapped])
 
   useEffect(() => {
     if (!svgRef.current || !chartData.length) {

@@ -457,21 +457,7 @@ def create_app():
             limit = max(1, min(int(request.args.get("limit", 50)), 5000))
             offset = max(0, int(request.args.get("offset", 0)))
 
-            # Detect if any filters are present; if so, use Elasticsearch even when query is empty
-            has_filter_params = any([
-                request.args.get("year_gte"),
-                request.args.get("year_lte"),
-                request.args.get("organism"),
-                request.args.get("mission"),
-                request.args.get("environment"),
-                request.args.get("hasOSDR"),
-                request.args.get("hasDOI"),
-            ])
-
-            if not query and not has_filter_params:
-                papers = load_papers_from_db(limit, offset)
-                return jsonify(papers)
-
+            # Always use Elasticsearch so years and facets come from the canonical source
             filters = {}
             if request.args.get("year_gte"):
                 filters["year_gte"] = int(request.args.get("year_gte"))

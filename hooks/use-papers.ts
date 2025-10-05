@@ -87,11 +87,23 @@ export function usePapers(): UsePapersReturn {
     setError(null);
     
     try {
-      const response = await apiService.searchPapers(query, filters, 1000);
-      if (response.error) {
-        setError(response.error);
-      } else if (response.data) {
-        setPapers(response.data);
+      // If only year range is provided (no search query, no facets), filter locally
+      const onlyYear = !query.trim() && !!filters &&
+        Object.keys(filters).every((k) => ["year_gte", "year_lte"].includes(k)) &&
+        (filters.year_gte !== undefined || filters.year_lte !== undefined);
+
+      if (onlyYear) {
+        // Pull from backend ES so we are not capped by the initial page
+        const allResp = await apiService.searchPapers('', { year_gte: filters.year_gte, year_lte: filters.year_lte }, 5000);
+        const all = Array.isArray(allResp.data) ? allResp.data : [];
+        setPapers(all);
+      } else {
+        const response = await apiService.searchPapers(query, filters, 50);
+        if (response.error) {
+          setError(response.error);
+        } else if (response.data) {
+          setPapers(response.data);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed');
