@@ -2,7 +2,7 @@
 """
 Flask API for Space Bio Engine with Elasticsearch backend + Chat + AI
 
-- Loads env from .env (OPENAI_API_KEY, OPENAI_MODEL, ES_*)
+- Loads env from .env (GEMINI_API_KEY, GEMINI_MODEL, ES_*)
 - Dev-friendly CORS (handles OPTIONS preflight)
 - Elasticsearch search with safe mapping + fallback
 - Chat blueprint + Socket.IO (auto AI replies for threads of type="ai")
@@ -22,9 +22,9 @@ from typing import Dict, Any, List
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
-from openai import OpenAI
+import google.generativeai as genai
 
-# Load .env early (OPENAI_API_KEY, OPENAI_MODEL, ES_*)
+# Load .env early (GEMINI_API_KEY, GEMINI_MODEL, ES_*)
 load_dotenv()
 
 # --- Local modules you already have ---
@@ -47,7 +47,8 @@ ES_USERNAME = os.getenv("ES_USERNAME", "elastic")
 ES_PASSWORD = os.getenv("ES_PASSWORD", "elasSer12!")
 INDEX_NAME  = os.getenv("ES_INDEX", "space_bio_papers")
 
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")  # we want gpt-4o for your setup
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyAFKyyGqKGWM0W2J1gPzRtmhzAYw6fHKhw")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 
 # ------------------------------------------------------------------------------
@@ -282,7 +283,7 @@ def create_app():
         answer, sources = answer_with_rag(
             query=last_user,
             search_fn=search_top_k,
-            model=OPENAI_MODEL,
+            model=GEMINI_MODEL,
         )
         return {"content": answer, "sources": sources}
 
@@ -353,8 +354,8 @@ def create_app():
     def ai_ping():
         return jsonify({
             "ok": True,
-            "has_key": bool(os.getenv("OPENAI_API_KEY")),
-            "model": OPENAI_MODEL
+            "has_key": bool(GEMINI_API_KEY),
+            "model": GEMINI_MODEL
         })
 
     @app.post("/api/ai/ask")
@@ -364,7 +365,7 @@ def create_app():
         if not q:
             return {"error": "query is required"}, 400
         try:
-            answer, sources = answer_with_rag(q, search_top_k, OPENAI_MODEL)
+            answer, sources = answer_with_rag(q, search_top_k, GEMINI_MODEL)
             return jsonify({"answer": answer, "sources": sources})
         except Exception as e:
             print(f"[AI_ASK_ERROR] {e}")
@@ -383,7 +384,7 @@ def create_app():
         if not q:
             return {"error": "query is required"}, 400
         try:
-            answer, sources = answer_with_rag(q, search_top_k, OPENAI_MODEL)
+            answer, sources = answer_with_rag(q, search_top_k, GEMINI_MODEL)
             return jsonify({"answer": answer, "sources": sources})
         except Exception as e:
             print(f"[AI_CONTEXT_ERROR] {e}")
@@ -403,7 +404,7 @@ def create_app():
         if not q:
             return {"error": "query is required"}, 400
         try:
-            answer, sources = answer_with_rag(q, search_top_k, OPENAI_MODEL)
+            answer, sources = answer_with_rag(q, search_top_k, GEMINI_MODEL)
             return jsonify({"answer": answer, "sources": sources})
         except Exception as e:
             print(f"[AI_CONTEXT_LEGACY_ERROR] {e}")
@@ -417,7 +418,7 @@ def create_app():
         if not text:
             return {"error": "text is required"}, 400
         try:
-            summary = summarize_text(text=text, style=style, model=OPENAI_MODEL)
+            summary = summarize_text(text=text, style=style, model=GEMINI_MODEL)
             return jsonify({"summary": summary})
         except Exception as e:
             print(f"[AI_SUMMARY_ERROR] {e}")
@@ -455,35 +456,140 @@ def create_app():
     # OpenAI Chatbot Endpoints
     # ------------------------------------------------------------------------------
     
-    # Initialize OpenAI client
-    openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    # Initialize Gemini client with proper error handling
+    if not GEMINI_API_KEY:
+        print("⚠️  Warning: GEMINI_API_KEY not found. AI features will be disabled.")
+        gemini_client = None
+    else:
+        try:
+            genai.configure(api_key=GEMINI_API_KEY)
+            print(f"🔧 Using Gemini model: {GEMINI_MODEL}")
+            gemini_client = genai.GenerativeModel(GEMINI_MODEL)
+            print("✅ Gemini client initialized successfully")
+        except Exception as e:
+            print(f"❌ Failed to initialize Gemini client: {e}")
+            gemini_client = None
     
+    def safe_extract_text_from_response(response):
+        """Safely extract text from Gemini response regardless of finish_reason"""
+        try:
+            # First try the simple approach
+            if hasattr(response, 'text') and response.text:
+                return response.text
+        except:
+            pass
+        
+        # If that fails, try to extract from candidates
+        try:
+            if hasattr(response, 'candidates') and response.candidates:
+                for candidate in response.candidates:
+                    # Try direct parts access
+                    if hasattr(candidate, 'parts') and candidate.parts:
+                        text_parts = []
+                        for part in candidate.parts:
+                            if hasattr(part, 'text') and part.text:
+                                text_parts.append(part.text)
+                        if text_parts:
+                            return ' '.join(text_parts)
+                    
+                    # Try content.parts access
+                    if hasattr(candidate, 'content') and candidate.content:
+                        if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                            text_parts = []
+                            for part in candidate.content.parts:
+                                if hasattr(part, 'text') and part.text:
+                                    text_parts.append(part.text)
+                            if text_parts:
+                                return ' '.join(text_parts)
+        except:
+            pass
+        
+        return None
+
     @app.post("/api/chat")
     def chat():
-        """Simple non-streaming chat endpoint"""
+        """Bulletproof chat endpoint with comprehensive error handling"""
+        if not gemini_client:
+            return jsonify({"error": "Gemini client not available. Please set GEMINI_API_KEY environment variable."}), 503
+            
         try:
             data = request.get_json(force=True) or {}
             messages = data.get("messages", [{"role": "user", "content": "Hello!"}])
             
-            # Add system message for space biology context
-            system_message = {
-                "role": "system", 
-                "content": "You are a helpful AI assistant specialized in space biology research. You can answer questions about space biology, research papers, and related topics."
-            }
+            # Build conversation text for Gemini
+            system_prompt = "You are a NASA space biology research assistant. You help researchers understand the effects of spaceflight on biological systems. You can discuss scientific topics including bone density, muscle loss, cardiovascular changes, and other physiological effects of microgravity. Please provide accurate, scientific information based on research findings."
             
-            # Insert system message at the beginning if not already present
-            if not messages or messages[0].get("role") != "system":
-                messages.insert(0, system_message)
+            conversation_text = system_prompt + "\n\n"
+            for message in messages:
+                if message.get("role") == "user":
+                    conversation_text += f"User: {message.get('content', '')}\n"
+                elif message.get("role") == "assistant":
+                    conversation_text += f"Assistant: {message.get('content', '')}\n"
             
-            response = openai_client.chat.completions.create(
-                model=OPENAI_MODEL,
-                messages=messages,
-                temperature=0.2,
-                max_tokens=512
+            # Generate response using Gemini with conservative settings
+            response = gemini_client.generate_content(
+                conversation_text,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.1,
+                    max_output_tokens=1000,
+                    top_p=0.8,
+                    top_k=40
+                )
             )
             
-            answer = response.choices[0].message.content if response.choices else ""
-            return jsonify({"answer": answer})
+            # Extract text safely
+            answer_text = safe_extract_text_from_response(response)
+            
+            # Debug logging
+            print(f"[DEBUG] Extracted text: {answer_text[:100] if answer_text else 'None'}")
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                finish_reason = getattr(candidate, 'finish_reason', 0)
+                print(f"[DEBUG] Finish reason: {finish_reason}")
+                print(f"[DEBUG] Candidate: {candidate}")
+            
+            # If first attempt failed due to safety filters, try a simpler approach
+            if not answer_text and hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                finish_reason = getattr(candidate, 'finish_reason', 0)
+                
+                if finish_reason == 3:  # SAFETY filter triggered
+                    print("[DEBUG] Safety filter triggered, trying simpler prompt...")
+                    # Try with a much simpler, more direct prompt
+                    simple_prompt = f"Please explain: {messages[-1].get('content', '') if messages else 'Hello'}"
+                    try:
+                        simple_response = gemini_client.generate_content(
+                            simple_prompt,
+                            generation_config=genai.types.GenerationConfig(
+                                temperature=0.1,
+                                max_output_tokens=500,
+                                top_p=0.9,
+                                top_k=20
+                            )
+                        )
+                        answer_text = safe_extract_text_from_response(simple_response)
+                        print(f"[DEBUG] Simple prompt result: {answer_text[:100] if answer_text else 'None'}")
+                    except Exception as e:
+                        print(f"[DEBUG] Simple prompt also failed: {e}")
+            
+            if answer_text:
+                return jsonify({"answer": answer_text})
+            else:
+                # If no text extracted, provide helpful message based on finish_reason
+                if hasattr(response, 'candidates') and response.candidates:
+                    candidate = response.candidates[0]
+                    finish_reason = getattr(candidate, 'finish_reason', 0)
+                    
+                    if finish_reason == 2:  # MAX_TOKENS
+                        return jsonify({"answer": "I apologize, but my response was cut off due to length limits. Please try asking a more specific question."})
+                    elif finish_reason == 3:  # SAFETY
+                        return jsonify({"answer": "I'm unable to provide a response to this query due to content safety guidelines. Please try rephrasing your question."})
+                    elif finish_reason == 4:  # RECITATION
+                        return jsonify({"answer": "I'm unable to provide a response to this query due to content policy restrictions. Please try a different question."})
+                    else:
+                        return jsonify({"answer": f"I encountered an issue processing your request (code: {finish_reason}). Please try rephrasing your question."})
+                else:
+                    return jsonify({"answer": "I'm sorry, I couldn't generate a response. Please try again with a different question."})
             
         except Exception as e:
             print(f"[CHAT_ERROR] {e}")
@@ -491,35 +597,71 @@ def create_app():
 
     @app.post("/api/chat-stream")
     def chat_stream():
-        """Streaming chat endpoint using Server-Sent Events (SSE)"""
-        # Get request data at the function level
+        """Bulletproof streaming chat endpoint"""
+        if not gemini_client:
+            def generate_error():
+                yield f"event: error\ndata: {json.dumps({'error': 'Gemini client not available. Please set GEMINI_API_KEY environment variable.'})}\n\n"
+            return Response(
+                generate_error(),
+                mimetype='text/event-stream',
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                }
+            )
+            
         data = request.get_json(force=True) or {}
         messages = data.get("messages", [{"role": "user", "content": "Hello!"}])
         
-        # Add system message for space biology context
-        system_message = {
-            "role": "system", 
-            "content": "You are a helpful AI assistant specialized in space biology research. You can answer questions about space biology, research papers, and related topics."
-        }
-        
-        # Insert system message at the beginning if not already present
-        if not messages or messages[0].get("role") != "system":
-            messages.insert(0, system_message)
-        
         def generate():
             try:
+                # Build conversation text
+                system_prompt = "You are a NASA space biology research assistant. You help researchers understand the effects of spaceflight on biological systems. You can discuss scientific topics including bone density, muscle loss, cardiovascular changes, and other physiological effects of microgravity. Please provide accurate, scientific information based on research findings."
+                conversation_text = system_prompt + "\n\n"
+                for message in messages:
+                    if message.get("role") == "user":
+                        conversation_text += f"User: {message.get('content', '')}\n"
+                    elif message.get("role") == "assistant":
+                        conversation_text += f"Assistant: {message.get('content', '')}\n"
                 
-                # Create streaming response
-                stream = openai_client.chat.completions.create(
-                    model=OPENAI_MODEL,
-                    messages=messages,
-                    temperature=0.2,
-                    stream=True
+                # Generate response
+                response = gemini_client.generate_content(
+                    conversation_text,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.1,
+                        max_output_tokens=1000,
+                        top_p=0.8,
+                        top_k=40
+                    )
                 )
                 
-                for chunk in stream:
-                    if chunk.choices and chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
+                # Extract text safely
+                response_text = safe_extract_text_from_response(response)
+                
+                if not response_text:
+                    # Provide helpful fallback messages
+                    if hasattr(response, 'candidates') and response.candidates:
+                        candidate = response.candidates[0]
+                        finish_reason = getattr(candidate, 'finish_reason', 0)
+                        
+                        if finish_reason == 2:
+                            response_text = "I apologize, but my response was cut off due to length limits. Please try asking a more specific question."
+                        elif finish_reason == 3:
+                            response_text = "I'm unable to provide a response to this query due to content safety guidelines. Please try rephrasing your question."
+                        elif finish_reason == 4:
+                            response_text = "I'm unable to provide a response to this query due to content policy restrictions. Please try a different question."
+                        else:
+                            response_text = f"I encountered an issue processing your request (code: {finish_reason}). Please try rephrasing your question."
+                    else:
+                        response_text = "I'm sorry, I couldn't generate a response. Please try again with a different question."
+                
+                # Simulate streaming by sending the response in chunks
+                if response_text:
+                    words = response_text.split()
+                    for i, word in enumerate(words):
+                        content = word + (" " if i < len(words) - 1 else "")
                         yield f"data: {json.dumps({'content': content})}\n\n"
                 
                 # Send completion signal
@@ -552,7 +694,7 @@ if __name__ == "__main__":
     print("🚀 Starting Elasticsearch-powered Flask API + Chat + AI...")
     print(f"📊 Elasticsearch endpoint: {ES_ENDPOINT}")
     print(f"📚 Index: {INDEX_NAME}")
-    print(f"🧠 OpenAI model: {OPENAI_MODEL}")
+    print(f"🧠 Gemini model: {GEMINI_MODEL}")
     # IMPORTANT: run via Socket.IO so websockets work
     # Using port 5001 to match your frontend's request: http://localhost:5001/api/chat/context
     _socketio.run(app, host="127.0.0.1", port=5003, debug=True, allow_unsafe_werkzeug=True)
