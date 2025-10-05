@@ -80,7 +80,7 @@ class ApiService {
   }
 
   // Get all papers with pagination
-  async getPapers(limit: number = 50, offset: number = 0): Promise<ApiResponse<Paper[]>> {
+  async getPapers(limit: number = 1000, offset: number = 0): Promise<ApiResponse<Paper[]>> {
     return this.request(`/api/papers?limit=${limit}&offset=${offset}`);
   }
 
@@ -98,9 +98,10 @@ class ApiService {
     environment?: string;
     hasOSDR?: boolean;
     hasDOI?: boolean;
-  }): Promise<ApiResponse<Paper[]>> {
+  }, limit: number = 1000): Promise<ApiResponse<Paper[]>> {
     const params = new URLSearchParams();
     if (query) params.append('q', query);
+    params.append('limit', limit.toString());
     if (filters) {
       if (filters.year_gte) params.append('year_gte', filters.year_gte.toString());
       if (filters.year_lte) params.append('year_lte', filters.year_lte.toString());
