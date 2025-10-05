@@ -465,4 +465,4 @@ if __name__ == "__main__":
     print(f"🧠 OpenAI model: {OPENAI_MODEL}")
     # IMPORTANT: run via Socket.IO so websockets work
     # Using port 5001 to match your frontend's request: http://localhost:5001/api/chat/context
-    _socketio.run(app, host="127.0.0.1", port=5001, debug=True)
+    _socketio.run(app, host="127.0.0.1", port=5003, debug=True, allow_unsafe_werkzeug=True)
