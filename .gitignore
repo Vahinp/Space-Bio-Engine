@@ -16,9 +16,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
-*.env*
-*azure_openai.env*
+# env files (ignore any env file anywhere)
+**/*.env
+**/*.env.*
+**/*azure_openai.env*
+**/*openai*.env*
+**/*elasticsearch*.env*
 
 # vercel
 .vercel
