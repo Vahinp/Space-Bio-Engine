@@ -277,7 +277,8 @@ export function CategoryGraph({ papers, category, className }: CategoryGraphProp
         // Calculate similarity based on shared keywords in abstracts/titles
         const similarity = calculateCategorySimilarity(nodes[i].papers, nodes[j].papers, categoryKey)
         
-        if (similarity > 0.1) { // Only create links if similarity > 10%
+        // Lower threshold slightly so sparse categories (e.g., Hypergravity) still connect
+        if (similarity > 0.05) {
           links.push({
             source: nodes[i].id,
             target: nodes[j].id,
@@ -288,6 +289,38 @@ export function CategoryGraph({ papers, category, className }: CategoryGraphProp
         }
       }
     }
+
+    // Ensure every node has at least one connection: if isolated, connect to its best match
+    const nodeIdToDegree: Record<string, number> = {}
+    links.forEach(l => {
+      nodeIdToDegree[l.source as string] = (nodeIdToDegree[l.source as string] || 0) + 1
+      nodeIdToDegree[l.target as string] = (nodeIdToDegree[l.target as string] || 0) + 1
+    })
+    nodes.forEach((n, idx) => {
+      if ((nodeIdToDegree[n.id] || 0) === 0 && nodes.length > 1) {
+        // Find best match
+        let bestJ = -1
+        let bestSim = 0
+        for (let j = 0; j < nodes.length; j++) {
+          if (j === idx) continue
+          const sim = calculateCategorySimilarity(n.papers, nodes[j].papers, categoryKey)
+          if (sim > bestSim) {
+            bestSim = sim
+            bestJ = j
+          }
+        }
+        if (bestJ >= 0) {
+          links.push({
+            source: n.id,
+            target: nodes[bestJ].id,
+            // Use a minimal visible weight if similarity is extremely small
+            weight: Math.max(bestSim, 0.03),
+            sourceNode: n,
+            targetNode: nodes[bestJ]
+          })
+        }
+      }
+    })
 
     return { nodes, links }
   }
