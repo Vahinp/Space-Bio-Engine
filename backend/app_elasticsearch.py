@@ -22,7 +22,7 @@ from typing import Dict, Any, List
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
-from openai import OpenAI
+import google.generativeai as genai
 
 # Load .env early (OPENAI_API_KEY, OPENAI_MODEL, ES_*)
 load_dotenv()
@@ -47,7 +47,7 @@ ES_USERNAME = os.getenv("ES_USERNAME", "elastic")
 ES_PASSWORD = os.getenv("ES_PASSWORD", "elasSer12!")
 INDEX_NAME  = os.getenv("ES_INDEX", "space_bio_papers")
 
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")  # we want gpt-4o for your setup
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")  # Using Gemini 2.5 Flash for speed and cost
 
 
 # ------------------------------------------------------------------------------
@@ -452,11 +452,12 @@ def create_app():
             return {"error": str(e)}, 500
 
     # ------------------------------------------------------------------------------
-    # OpenAI Chatbot Endpoints
+    # Gemini Chatbot Endpoints
     # ------------------------------------------------------------------------------
     
-    # Initialize OpenAI client
-    openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    # Initialize Gemini client
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    gemini_model = genai.GenerativeModel(GEMINI_MODEL)
     
     @app.post("/api/chat")
     def chat():
@@ -465,32 +466,41 @@ def create_app():
             data = request.get_json(force=True) or {}
             messages = data.get("messages", [{"role": "user", "content": "Hello!"}])
             
-            # Add system message for space biology context
-            system_message = {
-                "role": "system", 
-                "content": "You are a helpful AI assistant specialized in space biology research. You can answer questions about space biology, research papers, and related topics."
-            }
+            # Convert messages to Gemini format
+            # Gemini uses a different format - we need to convert from OpenAI format
+            conversation_text = ""
+            for msg in messages:
+                if msg.get("role") == "system":
+                    conversation_text += f"System: {msg.get('content', '')}\n\n"
+                elif msg.get("role") == "user":
+                    conversation_text += f"User: {msg.get('content', '')}\n\n"
+                elif msg.get("role") == "assistant":
+                    conversation_text += f"Assistant: {msg.get('content', '')}\n\n"
             
-            # Insert system message at the beginning if not already present
-            if not messages or messages[0].get("role") != "system":
-                messages.insert(0, system_message)
+            # Add system context for space biology
+            system_context = "You are a helpful AI assistant specialized in space biology research. You can answer questions about space biology, research papers, and related topics. "
             
-            response = openai_client.chat.completions.create(
-                model=OPENAI_MODEL,
-                messages=messages,
-                temperature=0.2,
-                max_tokens=512
+            # Create the prompt for Gemini
+            prompt = f"{system_context}\n\n{conversation_text.strip()}"
+            
+            # Generate response using Gemini
+            response = gemini_model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.2,
+                    max_output_tokens=512,
+                )
             )
             
-            answer = response.choices[0].message.content if response.choices else ""
+            answer = response.text if response.text else "I'm sorry, I couldn't generate a response."
             return jsonify({"answer": answer})
             
         except Exception as e:
             print(f"[CHAT_ERROR] {e}")
             # Check if it's a quota/billing error
-            if "quota" in str(e).lower() or "billing" in str(e).lower():
+            if "quota" in str(e).lower() or "billing" in str(e).lower() or "api" in str(e).lower():
                 return jsonify({
-                    "answer": "I'm currently experiencing billing issues with my AI service. Please check your OpenAI account billing settings and try again later. In the meantime, you can explore the research papers and visualizations on this platform!"
+                    "answer": "I'm currently experiencing issues with my AI service. Please check your Gemini API key and try again later. In the meantime, you can explore the research papers and visualizations on this platform!"
                 })
             return jsonify({"error": "Chat service failed", "detail": str(e)}), 500
 
@@ -501,31 +511,42 @@ def create_app():
         data = request.get_json(force=True) or {}
         messages = data.get("messages", [{"role": "user", "content": "Hello!"}])
         
-        # Add system message for space biology context
-        system_message = {
-            "role": "system", 
-            "content": "You are a helpful AI assistant specialized in space biology research. You can answer questions about space biology, research papers, and related topics."
-        }
-        
-        # Insert system message at the beginning if not already present
-        if not messages or messages[0].get("role") != "system":
-            messages.insert(0, system_message)
-        
         def generate():
             try:
+                # Convert messages to Gemini format
+                conversation_text = ""
+                for msg in messages:
+                    if msg.get("role") == "system":
+                        conversation_text += f"System: {msg.get('content', '')}\n\n"
+                    elif msg.get("role") == "user":
+                        conversation_text += f"User: {msg.get('content', '')}\n\n"
+                    elif msg.get("role") == "assistant":
+                        conversation_text += f"Assistant: {msg.get('content', '')}\n\n"
                 
-                # Create streaming response
-                stream = openai_client.chat.completions.create(
-                    model=OPENAI_MODEL,
-                    messages=messages,
-                    temperature=0.2,
-                    stream=True
+                # Add system context for space biology
+                system_context = "You are a helpful AI assistant specialized in space biology research. You can answer questions about space biology, research papers, and related topics. "
+                
+                # Create the prompt for Gemini
+                prompt = f"{system_context}\n\n{conversation_text.strip()}"
+                
+                # Generate response using Gemini (note: Gemini doesn't support streaming in the same way)
+                # We'll simulate streaming by sending the response in chunks
+                response = gemini_model.generate_content(
+                    prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.2,
+                        max_output_tokens=512,
+                    )
                 )
                 
-                for chunk in stream:
-                    if chunk.choices and chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        yield f"data: {json.dumps({'content': content})}\n\n"
+                # Simulate streaming by sending response in chunks
+                if response.text:
+                    words = response.text.split()
+                    for i, word in enumerate(words):
+                        yield f"data: {json.dumps({'content': word + ' '})}\n\n"
+                        # Small delay to simulate streaming
+                        import time
+                        time.sleep(0.05)
                 
                 # Send completion signal
                 yield "event: done\ndata: {}\n\n"
@@ -557,7 +578,7 @@ if __name__ == "__main__":
     print("🚀 Starting Elasticsearch-powered Flask API + Chat + AI...")
     print(f"📊 Elasticsearch endpoint: {ES_ENDPOINT}")
     print(f"📚 Index: {INDEX_NAME}")
-    print(f"🧠 OpenAI model: {OPENAI_MODEL}")
+    print(f"🧠 Gemini model: {GEMINI_MODEL}")
     # IMPORTANT: run via Socket.IO so websockets work
     # Using port 5001 to match your frontend's request: http://localhost:5001/api/chat/context
     _socketio.run(app, host="127.0.0.1", port=5003, debug=True, allow_unsafe_werkzeug=True)
