@@ -65,25 +65,38 @@ export function KnowledgeGraph({ papers, searchQuery, className }: KnowledgeGrap
   useEffect(() => {
     console.log('KnowledgeGraph - papers received:', papers?.length)
     
-    if (!svgRef.current || !papers || papers.length === 0) {
-      console.log('KnowledgeGraph - no papers or svg ref')
+    if (!papers || papers.length === 0) {
+      console.log('KnowledgeGraph - no papers')
       return
     }
 
-    const svg = d3.select(svgRef.current)
-    svg.selectAll("*").remove()
+    // Define handleKeyDown outside setTimeout
+    let handleKeyDown: ((event: KeyboardEvent) => void) | null = null
 
-    const { nodes, links } = processGraphData(papers)
-    console.log('KnowledgeGraph - processed nodes:', nodes.length, 'links:', links.length)
-    
-    if (nodes.length === 0) {
-      console.log('KnowledgeGraph - no nodes to render')
-      return
-    }
+    // Small delay to ensure SVG is mounted
+    const timer = setTimeout(() => {
+      if (!svgRef.current) {
+        console.log('KnowledgeGraph - no svg ref after delay')
+        return
+      }
 
-    const container = svgRef.current.parentElement
-    const width = container?.clientWidth || 800
-    const height = container?.clientHeight || 600
+      const svg = d3.select(svgRef.current)
+      svg.selectAll("*").remove()
+
+      const { nodes, links } = processGraphData(papers)
+      console.log('KnowledgeGraph - processed nodes:', nodes.length, 'links:', links.length)
+      
+      if (nodes.length === 0) {
+        console.log('KnowledgeGraph - no nodes to render')
+        return
+      }
+
+      // Get the actual SVG dimensions
+      const svgElement = svgRef.current
+      const width = svgElement.clientWidth || window.innerWidth
+      const height = svgElement.clientHeight || window.innerHeight
+      
+      console.log('KnowledgeGraph - dimensions:', width, height)
 
     // Simple dark background
     svg.append("rect")
@@ -126,14 +139,38 @@ export function KnowledgeGraph({ papers, searchQuery, className }: KnowledgeGrap
     node.append("title")
       .text((d: any) => `${d.title}\nYear: ${d.year}`)
 
-    // Simple zoom
+    // Enhanced zoom with pan
     const zoom = d3.zoom()
-      .scaleExtent([0.5, 2])
+      .scaleExtent([0.1, 4])
       .on("zoom", (event) => {
+        // Apply zoom to all elements
         svg.selectAll("g").attr("transform", event.transform)
       })
 
     svg.call(zoom)
+
+    // Add keyboard zoom shortcuts
+    handleKeyDown = (event: KeyboardEvent) => {
+      const currentTransform = d3.zoomTransform(svg.node())
+      let newScale = currentTransform.k
+      
+      if (event.key === '+' || event.key === '=') {
+        newScale = Math.min(currentTransform.k * 1.2, 4)
+      } else if (event.key === '-') {
+        newScale = Math.max(currentTransform.k / 1.2, 0.1)
+      } else if (event.key === '0') {
+        newScale = 1
+      }
+      
+      if (newScale !== currentTransform.k) {
+        svg.transition()
+          .duration(300)
+          .call(zoom.transform, d3.zoomIdentity.scale(newScale).translate(currentTransform.x, currentTransform.y))
+      }
+    }
+
+    // Add keyboard event listener
+    document.addEventListener('keydown', handleKeyDown)
 
     // Event handlers
     node
@@ -190,11 +227,19 @@ export function KnowledgeGraph({ papers, searchQuery, className }: KnowledgeGrap
         .on("end", dragended)
     }
 
+    }, 100) // 100ms delay
+
+    return () => {
+      clearTimeout(timer)
+      if (handleKeyDown) {
+        document.removeEventListener('keydown', handleKeyDown)
+      }
+    }
   }, [papers, searchQuery])
 
   return (
-    <div className="w-full h-screen">
-      <svg ref={svgRef} className="w-full h-full" />
-    </div>
+    <div className="w-full h-screen" style={{ height: '100vh' }}>
+      <svg ref={svgRef} className="w-full h-full" style={{ width: '100%', height: '100vh' }} />
+          </div>
   )
 }
