@@ -87,7 +87,7 @@ export function usePapers(): UsePapersReturn {
     setError(null);
     
     try {
-      const response = await apiService.searchPapers(query, filters);
+      const response = await apiService.searchPapers(query, filters, 1000);
       if (response.error) {
         setError(response.error);
       } else if (response.data) {

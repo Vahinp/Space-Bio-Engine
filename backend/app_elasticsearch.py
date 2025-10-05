@@ -209,6 +209,7 @@ def create_app():
         hits = data.get("hits", {}).get("hits", [])
         total = data.get("hits", {}).get("total", {}).get("value", 0)
 
+<<<<<<< HEAD
         def to_api_result(hit: Dict[str, Any]) -> Dict[str, Any]:
             source = hit.get("_source", {}) or {}
             abstract = source.get("abstract", "") or ""
@@ -236,6 +237,36 @@ def create_app():
                 "taskBookLink": source.get("taskBookLink", ""),
                 "score": hit.get("_score", 0),
                 "highlights": hit.get("highlight", {}),
+=======
+        # Convert to our API format
+        results = []
+        for hit in hits:
+            source = hit['_source']
+            result = {
+                "id": source.get('paper_id') or source.get('id'),
+                "title": source['title'],
+                "url": source['url'],
+                "organism": source.get('organism'),
+                "year": source.get('year'),
+                "source": source.get('venue'),
+                "authors": source.get('authors', 'Unknown Author'),
+                "mission": source.get('mission', 'Unknown Mission'),
+                "environment": source.get('environment', 'Space Environment'),
+                "summary": (source.get('abstract') or '')[:200] + "..." if len(source.get('abstract') or '') > 200 else (source.get('abstract') or ''),
+                "citations": source.get('citations', 0),
+                "hasOSDR": source.get('hasOSDR', False),
+                "hasDOI": source.get('hasDOI', False),
+                "bookmarked": False,  # Not stored in ES yet
+                "abstract": source.get('abstract') or '',
+                "keyResults": [],  # Not stored in ES yet
+                "methods": "Not specified",  # Not stored in ES yet
+                "conclusions": "Not specified",  # Not stored in ES yet
+                "doi": source.get('doi', ''),
+                "osdrLink": source.get('osdrLink', ''),
+                "taskBookLink": source.get('taskBookLink', ''),
+                "score": hit.get('_score', 0),
+                "highlights": hit.get('highlight', {})
+>>>>>>> bd88aec0f93c174958cf63d1608f0a35e7d8e972
             }
 
         results = [to_api_result(h) for h in hits]
